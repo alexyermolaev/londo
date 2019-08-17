@@ -32,14 +32,15 @@ func NewDBConnection(db string) (*MongoDB, error) {
 }
 
 type Subject struct {
-	Subject    string    `bson:"subject"`
-	CSR        string    `bson:"csr"`
-	PrivateKey string    `bson:"private_key"`
-	CertID     int       `bson:"cert_id"`
-	OrderID    string    `bson:"order_id"`
-	CreatedAt  time.Time `bson:"created_at"`
-	UpdatedAt  time.Time `bson:"updated_at"`
-	Targets    []string  `bson:"targets"`
+	Subject     string    `bson:"subject"`
+	CSR         string    `bson:"csr"`
+	PrivateKey  string    `bson:"private_key"`
+	Certificate string    `bson:"certificate"`
+	CertID      int       `bson:"cert_id"`
+	OrderID     string    `bson:"order_id"`
+	CreatedAt   time.Time `bson:"created_at"`
+	UpdatedAt   time.Time `bson:"updated_at"`
+	Targets     []string  `bson:"targets"`
 }
 
 func (s Subject) GetCollectionName(db string, c *mongo.Client) *mongo.Collection {
