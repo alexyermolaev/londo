@@ -46,3 +46,25 @@ type Subject struct {
 func (s Subject) GetCollectionName(db string, c *mongo.Client) *mongo.Collection {
 	return c.Database(db).Collection("subjects")
 }
+
+func (s Subject) GetNotAfterHours() (float64, error) {
+	pub, err := ParsePublicCertificate(s)
+	if err != nil {
+		return 0, err
+	}
+
+	diff := time.Until(pub.NotAfter)
+	return diff.Round(time.Hour).Hours(), nil
+}
+
+func (s Subject) IsExpiring(hours int) (bool, float64, error) {
+	h, err := s.GetNotAfterHours()
+	if err != nil {
+		return false, h, err
+	}
+	if h < float64(hours) {
+		return true, h, err
+	} else {
+		return false, h, err
+	}
+}
