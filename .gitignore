@@ -11,4 +11,8 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# VS Code stuff
 .vsocde/
+
+# This may contain secrets
+config/config.yaml
