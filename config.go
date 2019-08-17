@@ -7,6 +7,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type rabbitmq struct {
+	Hostname string
+	Port     int
+	Username string
+	Password string
+	Exchange string
+}
+
 type db struct {
 	Hostname string
 	Port     int
@@ -16,7 +24,8 @@ type db struct {
 }
 
 type Config struct {
-	DB db `yaml:"mongodb"`
+	DB   db       `yaml:"mongodb"`
+	AMQP rabbitmq `yaml:"amqp"`
 }
 
 func ReadConfig() (*Config, error) {
