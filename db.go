@@ -31,6 +31,36 @@ func NewDBConnection(db string) (*MongoDB, error) {
 	return m, nil
 }
 
+func (m MongoDB) FindAll(c Collection) ([]*Collection, error) {
+	col := m.Client.Database(m.Name).Collection(c.GetCollectioName())
+
+	cur, err := col.Find(m.Ctx, m.Client)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(m.Ctx)
+
+	var results []*Collection
+
+	for cur.Next(m.Ctx) {
+		var res Collection
+
+		err := cur.Decode(res)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &res)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+type Collection interface {
+	GetCollectioName() string
+}
+
 type Subject struct {
 	Subject     string    `bson:"subject"`
 	CSR         string    `bson:"csr"`
@@ -43,8 +73,8 @@ type Subject struct {
 	Targets     []string  `bson:"targets"`
 }
 
-func (s Subject) GetCollectionName(db string, c *mongo.Client) *mongo.Collection {
-	return c.Database(db).Collection("subjects")
+func (s Subject) GetCollectionName() string {
+	return "subjects"
 }
 
 func (s Subject) GetNotAfterHours() (float64, error) {
