@@ -8,7 +8,7 @@ func CheckFatalError(err error) {
 	}
 }
 
-func LogConfig(level logrus.Level) {
+func ConfigureLogging(level logrus.Level) {
 	logrus.SetLevel(level)
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,

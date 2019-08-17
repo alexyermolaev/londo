@@ -2,6 +2,7 @@ package londo
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,20 +16,25 @@ type MongoDB struct {
 	Name      string
 }
 
-func NewDBConnection(db string) (*MongoDB, error) {
-	m := &MongoDB{Name: db}
+func NewDBConnection(c *Config) (*MongoDB, error) {
+	m := &MongoDB{Name: c.DB.Name}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	m.CancelCtx = cancel
 	m.Ctx = ctx
 
-	client, err := mongo.Connect(m.Ctx, options.Client().ApplyURI("mongodb://"+"localhost"+":"+"27017"))
+	client, err := mongo.Connect(m.Ctx, options.Client().ApplyURI(
+		"mongodb://"+c.DB.Hostname+":"+strconv.Itoa(c.DB.Port)))
 	if err != nil {
 		return nil, err
 	}
 
 	m.Client = client
 	return m, nil
+}
+
+func (m MongoDB) Disconnect() {
+	m.Client.Disconnect(m.Ctx)
 }
 
 func (m MongoDB) FindAll(c Collection) ([]*Collection, error) {

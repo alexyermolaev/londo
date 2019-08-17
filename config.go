@@ -7,15 +7,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type dbConfig struct {
-	hostname string
-	port     int
-	username string
-	password string
+type db struct {
+	Hostname string
+	Port     int
+	Uername  string
+	Password string
+	Name     string
 }
 
 type Config struct {
-	DB dbConfig `yaml:"mongodb"`
+	DB db `yaml:"mongodb"`
 }
 
 func ReadConfig() (*Config, error) {
