@@ -37,8 +37,8 @@ func (m MongoDB) Disconnect() {
 	m.Client.Disconnect(m.Ctx)
 }
 
-func (m MongoDB) FindAll(c Collection) ([]*Collection, error) {
-	col := m.Client.Database(m.Name).Collection(c.GetCollectioName())
+func (m MongoDB) FindAllSubjects() ([]*Subject, error) {
+	col := m.Client.Database(m.Name).Collection("subjects")
 
 	cur, err := col.Find(m.Ctx, m.Client)
 	if err != nil {
@@ -46,12 +46,12 @@ func (m MongoDB) FindAll(c Collection) ([]*Collection, error) {
 	}
 	defer cur.Close(m.Ctx)
 
-	var results []*Collection
+	var results []*Subject
 
 	for cur.Next(m.Ctx) {
-		var res Collection
+		var res Subject
 
-		err := cur.Decode(res)
+		err := cur.Decode(&res)
 		if err != nil {
 			return nil, err
 		}
@@ -63,8 +63,22 @@ func (m MongoDB) FindAll(c Collection) ([]*Collection, error) {
 	return results, nil
 }
 
-type Collection interface {
-	GetCollectioName() string
+func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
+	subjs, err := m.FindAllSubjects()
+	if err != nil {
+		return nil, err
+	}
+
+	var res []*Subject
+
+	for _, s := range subjs {
+		h := time.Until(s.NotAfter).Round(time.Hour).Hours()
+		if h < float64(hours) {
+			res = append(res, s)
+		}
+	}
+
+	return res, nil
 }
 
 type Subject struct {
@@ -74,33 +88,8 @@ type Subject struct {
 	Certificate string    `bson:"certificate"`
 	CertID      int       `bson:"cert_id"`
 	OrderID     string    `bson:"order_id"`
+	NotAfter    time.Time `bson:"not_after"`
 	CreatedAt   time.Time `bson:"created_at"`
 	UpdatedAt   time.Time `bson:"updated_at"`
 	Targets     []string  `bson:"targets"`
-}
-
-func (s Subject) GetCollectionName() string {
-	return "subjects"
-}
-
-func (s Subject) GetNotAfterHours() (float64, error) {
-	pub, err := ParsePublicCertificate(s)
-	if err != nil {
-		return 0, err
-	}
-
-	diff := time.Until(pub.NotAfter)
-	return diff.Round(time.Hour).Hours(), nil
-}
-
-func (s Subject) IsExpiring(hours int) (bool, float64, error) {
-	h, err := s.GetNotAfterHours()
-	if err != nil {
-		return false, h, err
-	}
-	if h < float64(hours) {
-		return true, h, err
-	} else {
-		return false, h, err
-	}
 }
