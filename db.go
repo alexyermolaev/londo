@@ -10,43 +10,43 @@ import (
 )
 
 type MongoDB struct {
-	Ctx    context.Context
-	Client *mongo.Client
-	Name   string
+	context context.Context
+	client  *mongo.Client
+	Name    string
 }
 
 func NewDBConnection(c *Config) (*MongoDB, error) {
 	m := &MongoDB{Name: c.DB.Name}
 
 	ctx := context.Background()
-	m.Ctx = ctx
+	m.context = ctx
 
-	client, err := mongo.Connect(m.Ctx, options.Client().ApplyURI(
+	client, err := mongo.Connect(m.context, options.Client().ApplyURI(
 		"mongodb://"+c.DB.Hostname+":"+strconv.Itoa(c.DB.Port)))
 	if err != nil {
 		return nil, err
 	}
 
-	m.Client = client
+	m.client = client
 	return m, nil
 }
 
 func (m MongoDB) Disconnect() {
-	m.Client.Disconnect(m.Ctx)
+	m.client.Disconnect(m.context)
 }
 
 func (m MongoDB) FindAllSubjects() ([]*Subject, error) {
-	col := m.Client.Database(m.Name).Collection("subjects")
+	col := m.client.Database(m.Name).Collection("subjects")
 
-	cur, err := col.Find(m.Ctx, m.Client)
+	cur, err := col.Find(m.context, m.client)
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(m.Ctx)
+	defer cur.Close(m.context)
 
 	var results []*Subject
 
-	for cur.Next(m.Ctx) {
+	for cur.Next(m.context) {
 		var res Subject
 
 		err := cur.Decode(&res)
@@ -89,5 +89,6 @@ type Subject struct {
 	NotAfter    time.Time `bson:"not_after"`
 	CreatedAt   time.Time `bson:"created_at"`
 	UpdatedAt   time.Time `bson:"updated_at"`
+	Retired     bool      `bson:"retired"`
 	Targets     []string  `bson:"targets"`
 }

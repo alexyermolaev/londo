@@ -3,8 +3,9 @@ package londo
 import (
 	"encoding/json"
 	"errors"
-	"github.com/sirupsen/logrus"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/streadway/amqp"
 )
@@ -26,7 +27,8 @@ func NewMQConnection(c *Config) (*AMQP, error) {
 	var err error
 
 	p.conn, err = amqp.Dial(
-		"amqp://" + c.AMQP.Username + ":" + c.AMQP.Password + "@" + c.AMQP.Hostname + ":" + strconv.Itoa(c.AMQP.Port))
+		"amqp://" + c.AMQP.Username + ":" + c.AMQP.Password + "@" + c.AMQP.Hostname + ":" +
+			strconv.Itoa(c.AMQP.Port))
 	if err != nil {
 		return p, err
 	}
@@ -41,7 +43,14 @@ func (p *AMQP) ExchangeDeclare() error {
 	}
 	defer ch.Close()
 
-	return ch.ExchangeDeclare(p.exchange, "topic", true, false, false, false, nil)
+	return ch.ExchangeDeclare(
+		p.exchange,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil)
 }
 
 func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
@@ -60,7 +69,13 @@ func (p *AMQP) QueueBind(name string, key string) error {
 		return err
 	}
 
-	if err = ch.QueueBind(name, key, p.exchange, false, nil); err != nil {
+	if err = ch.QueueBind(
+		name,
+		key,
+		p.exchange,
+		false,
+		nil,
+	); err != nil {
 		return err
 	}
 
@@ -73,7 +88,13 @@ func (p AMQP) Consume(name string) error {
 		return err
 	}
 
-	deliver, err := ch.Consume(name, "", false, false, false, false, nil)
+	deliver, err := ch.Consume(
+		name, "",
+		false,
+		false,
+		false,
+		false,
+		nil)
 	if err != nil {
 		return err
 	}
@@ -82,8 +103,6 @@ func (p AMQP) Consume(name string) error {
 		logrus.Debug(string(d.Body))
 		d.Ack(false)
 	}
-
-	logrus.Debug("done")
 
 	err = ch.Cancel("", true)
 	if err != nil {
@@ -126,7 +145,12 @@ func (p AMQP) Emit(e Event, s *Subject) error {
 		Body:        j,
 	}
 
-	return ch.Publish(p.exchange, event.EventName(), false, false, msg)
+	return ch.Publish(
+		p.exchange,
+		event.EventName(),
+		false,
+		false,
+		msg)
 }
 
 type Event interface {
