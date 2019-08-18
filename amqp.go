@@ -10,6 +10,11 @@ import (
 	"github.com/streadway/amqp"
 )
 
+const (
+	eventHeader = "x-event-name"
+	renewEvent  = "renew"
+)
+
 type AMQP struct {
 	conn     *amqp.Connection
 	exchange string
@@ -100,7 +105,26 @@ func (p AMQP) Consume(name string) error {
 	}
 
 	for d := range deliver {
-		logrus.Debug(string(d.Body))
+		event, err := p.parseEventHeader(d.Headers)
+		if err != nil {
+			logrus.Warn(err)
+			continue
+		}
+
+		switch event {
+		case renewEvent:
+			var e RenewEvent
+			err := json.Unmarshal(d.Body, &e)
+			if err != nil {
+				logrus.Warn("cannot unmarshal message")
+				continue
+			}
+			logrus.Info(e.CertID)
+		default:
+			logrus.Warn("Unrecognized event type. Ignoring")
+			continue
+		}
+
 		d.Ack(false)
 	}
 
@@ -110,6 +134,18 @@ func (p AMQP) Consume(name string) error {
 	}
 
 	return nil
+}
+
+func (p AMQP) parseEventHeader(h amqp.Table) (string, error) {
+	raw, ok := h[eventHeader]
+	if !ok {
+		return "", errors.New("no " + eventHeader + " header found")
+	}
+	e, ok := raw.(string)
+	if !ok {
+		return "", errors.New("event name is not a string")
+	}
+	return e, nil
 }
 
 func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
@@ -140,7 +176,7 @@ func (p AMQP) Emit(e Event, s *Subject) error {
 	defer ch.Close()
 
 	msg := amqp.Publishing{
-		Headers:     amqp.Table{"x-event-name": event.EventName()},
+		Headers:     amqp.Table{eventHeader: event.EventName()},
 		ContentType: "application/json",
 		Body:        j,
 	}
@@ -163,5 +199,5 @@ type RenewEvent struct {
 }
 
 func (e RenewEvent) EventName() string {
-	return "renew"
+	return renewEvent
 }
