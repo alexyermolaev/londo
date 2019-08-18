@@ -10,17 +10,15 @@ import (
 )
 
 type MongoDB struct {
-	Ctx       context.Context
-	CancelCtx context.CancelFunc
-	Client    *mongo.Client
-	Name      string
+	Ctx    context.Context
+	Client *mongo.Client
+	Name   string
 }
 
 func NewDBConnection(c *Config) (*MongoDB, error) {
 	m := &MongoDB{Name: c.DB.Name}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	m.CancelCtx = cancel
+	ctx := context.Background()
 	m.Ctx = ctx
 
 	client, err := mongo.Connect(m.Ctx, options.Client().ApplyURI(
