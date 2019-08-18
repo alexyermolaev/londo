@@ -1,11 +1,24 @@
 package main
 
 import (
+	"time"
+
 	"github.com/alexyermolaev/londo"
+	"github.com/roylee0704/gron"
 	log "github.com/sirupsen/logrus"
 )
 
-// lchecker checks expring certificates
+func PublishExpiringCerts(db *londo.MongoDB, mq *londo.Producer) {
+	exp, err := db.FindExpiringSubjects(720)
+	londo.CheckFatalError(err)
+
+	for _, e := range exp {
+		log.Infof("%v, %v", e.Subject, e.NotAfter)
+		if err := mq.EmitRenew(e); err != nil {
+			londo.CheckFatalError(err)
+		}
+	}
+}
 
 func main() {
 	londo.ConfigureLogging(log.DebugLevel)
@@ -24,15 +37,14 @@ func main() {
 	mq, err := londo.NewProducer(c)
 	londo.CheckFatalError(err)
 
-	exp, err := db.FindExpiringSubjects(720)
-	londo.CheckFatalError(err)
+	cron := gron.New()
+	cron.AddFunc(gron.Every(1*time.Hour), func() {
+		PublishExpiringCerts(db, mq)
+	})
 
-	for _, e := range exp {
-		log.Infof("%v, %v", e.Subject, e.NotAfter)
-		if err := mq.EmitRenew(e); err != nil {
-			londo.CheckFatalError(err)
-		}
-	}
+	cron.Start()
+
+	select {}
 
 	log.Info("Disconnecting from the database")
 	db.Disconnect()
