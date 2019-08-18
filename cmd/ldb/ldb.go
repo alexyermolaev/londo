@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func PublishExpiringCerts(db *londo.MongoDB, mq *londo.Producer) {
+func PublishExpiringCerts(db *londo.MongoDB, mq *londo.AMQP) {
 	exp, err := db.FindExpiringSubjects(720)
 	londo.CheckFatalError(err)
 
@@ -25,7 +25,7 @@ func main() {
 
 	log.Info("Starting Database Daemon...")
 
-	log.Info("Reading configuration")
+	log.Info("Reading configuration...")
 	c, err := londo.ReadConfig()
 	londo.CheckFatalError(err)
 
@@ -34,7 +34,11 @@ func main() {
 	log.Infof("Connecting to %v database", db.Name)
 
 	log.Info("Connecting to RabbitMQ...")
-	mq, err := londo.NewProducer(c)
+	mq, err := londo.NewMQConnection(c)
+	londo.CheckFatalError(err)
+
+	log.Info("Declaring Exchange...")
+	err = mq.ExchangeDeclare()
 	londo.CheckFatalError(err)
 
 	cron := gron.New()

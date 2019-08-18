@@ -14,5 +14,8 @@
 # VS Code stuff
 .vsocde/
 
+# Goland
+.idea/
+
 # This may contain secrets
 config/config.yaml

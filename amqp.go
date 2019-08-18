@@ -7,17 +7,17 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type Producer struct {
+type AMQP struct {
 	conn     *amqp.Connection
 	exchange string
 }
 
-func (p *Producer) Shutdown() {
+func (p *AMQP) Shutdown() {
 	p.conn.Close()
 }
 
-func NewProducer(c *Config) (*Producer, error) {
-	p := &Producer{
+func NewMQConnection(c *Config) (*AMQP, error) {
+	p := &AMQP{
 		exchange: "londo-events",
 	}
 
@@ -29,16 +29,43 @@ func NewProducer(c *Config) (*Producer, error) {
 		return p, err
 	}
 
+	return p, err
+}
+
+func (p *AMQP) ExchangeDeclare() error {
 	ch, err := p.conn.Channel()
 	if err != nil {
-		return p, err
+		return err
 	}
 	defer ch.Close()
 
-	return p, ch.ExchangeDeclare(p.exchange, "topic", true, false, false, false, nil)
+	return ch.ExchangeDeclare(p.exchange, "topic", true, false, false, false, nil)
 }
 
-func (p Producer) EmitRenew(s *Subject) error {
+func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
+	ch, err := p.conn.Channel()
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+	defer ch.Close()
+
+	return ch.QueueDeclare(name, true, false, false, false, nil)
+}
+
+func (p *AMQP) QueueBind(name string, key string) error {
+	ch, err := p.conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	if err = ch.QueueBind(name, key, p.exchange, false, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p AMQP) EmitRenew(s *Subject) error {
 	event := RenewEvent{
 		Subject: s.Subject,
 		CertID:  s.CertID,
