@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+	"github.com/sirupsen/logrus"
 	"strconv"
 
 	"github.com/streadway/amqp"
@@ -60,6 +61,32 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	}
 
 	if err = ch.QueueBind(name, key, p.exchange, false, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p AMQP) Consume(name string) error {
+	ch, err := p.conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	deliver, err := ch.Consume(name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	for d := range deliver {
+		logrus.Debug(string(d.Body))
+		d.Ack(false)
+	}
+
+	logrus.Debug("done")
+
+	err = ch.Cancel("", true)
+	if err != nil {
 		return err
 	}
 

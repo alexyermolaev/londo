@@ -15,6 +15,18 @@ func main() {
 	londo.CheckFatalError(err)
 
 	log.Info("Connecting to RabbitMQ...")
-	//mq, err := londo.NewMQConnection(c)
+	mq, err := londo.NewMQConnection(c)
 	londo.CheckFatalError(err)
+
+	_, err = mq.QueueDeclare("renew")
+	londo.CheckFatalError(err)
+
+	err = mq.QueueBind("renew", "renew")
+	londo.CheckFatalError(err)
+
+	err = mq.Consume("renew")
+	londo.CheckFatalError(err)
+
+	log.Info("Shutting down RabbitMQ connection..")
+	mq.Shutdown()
 }
