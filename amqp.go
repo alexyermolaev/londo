@@ -111,17 +111,9 @@ func (p AMQP) Consume(name string) error {
 			continue
 		}
 
-		switch event {
-		case renewEvent:
-			var e RenewEvent
-			err := json.Unmarshal(d.Body, &e)
-			if err != nil {
-				logrus.Warn("cannot unmarshal message")
-				continue
-			}
-			logrus.Info(e.CertID)
-		default:
-			logrus.Warn("Unrecognized event type. Ignoring")
+		err = p.handleEvent(event)
+		if err != nil {
+			logrus.Warn(err)
 			continue
 		}
 
@@ -131,6 +123,22 @@ func (p AMQP) Consume(name string) error {
 	err = ch.Cancel("", true)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (p AMQP) handleEvent(event string) error {
+	switch event {
+	case renewEvent:
+		var e RenewEvent
+		err := json.Unmarshal(d.Body, &e)
+		if err != nil {
+			logrus.Warn("cannot unmarshal message")
+			return err
+		}
+	default:
+		return errors.New("unrecognized event type")
 	}
 
 	return nil

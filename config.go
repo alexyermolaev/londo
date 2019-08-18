@@ -7,6 +7,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type endpoints struct {
+	Revoke string
+}
+
+type restapi struct {
+	Url         string
+	Username    string
+	Password    string
+	CustomerURI string
+	Endpoints   endpoints
+}
+
 type rabbitmq struct {
 	Hostname string
 	Port     int
@@ -24,8 +36,9 @@ type db struct {
 }
 
 type Config struct {
-	DB   db       `yaml:"mongodb"`
-	AMQP rabbitmq `yaml:"amqp"`
+	DB      db       `yaml:"mongodb"`
+	AMQP    rabbitmq `yaml:"amqp"`
+	RestAPI restapi  `yaml:"sectigo"`
 }
 
 func ReadConfig() (*Config, error) {
