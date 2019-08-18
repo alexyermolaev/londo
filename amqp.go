@@ -8,22 +8,17 @@ import (
 )
 
 type Producer struct {
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	tag     string
-	done    chan error
+	conn     *amqp.Connection
+	exchange string
 }
 
-func (p *Producer) Shutdown() error {
-	if err := p.channel.Cancel(p.tag, true); err != nil {
-		return err
-	}
-	return nil
+func (p *Producer) Shutdown() {
+	p.conn.Close()
 }
 
 func NewProducer(c *Config) (*Producer, error) {
 	p := &Producer{
-		done: make(chan error),
+		exchange: "londo-events",
 	}
 
 	var err error
@@ -33,49 +28,47 @@ func NewProducer(c *Config) (*Producer, error) {
 	if err != nil {
 		return p, err
 	}
-	defer p.conn.Close()
 
-	p.channel, err = p.conn.Channel()
+	ch, err := p.conn.Channel()
 	if err != nil {
 		return p, err
 	}
+	defer ch.Close()
 
-	if err := p.channel.ExchangeDeclare(
-		"londo-events", "topic", true, false, false, false, nil); err != nil {
-		return p, err
-	}
-
-	return p, err
+	return p, ch.ExchangeDeclare(p.exchange, "topic", true, false, false, false, nil)
 }
 
 func (p Producer) EmitRenew(s *Subject) error {
-
-	msg := RenewEvent{
+	event := RenewEvent{
 		Subject: s.Subject,
 		CertID:  s.CertID,
 	}
 
-	j, err := json.Marshal(msg)
+	j, err := json.Marshal(&event)
 	if err != nil {
 		return err
 	}
 
-	if err := p.channel.Publish(
-		"londo-events", "renew", false, false, amqp.Publishing{
-			Headers:         amqp.Table{},
-			ContentType:     "application/json",
-			ContentEncoding: "",
-			Body:            j,
-			DeliveryMode:    amqp.Transient,
-			Priority:        0,
-		},
-	); err != nil {
+	ch, err := p.conn.Channel()
+	if err != nil {
 		return err
 	}
-	return nil
+	defer ch.Close()
+
+	msg := amqp.Publishing{
+		Headers:     amqp.Table{"x-event-name": event.EventName()},
+		ContentType: "application/json",
+		Body:        j,
+	}
+
+	return ch.Publish(p.exchange, event.EventName(), false, false, msg)
 }
 
 type RenewEvent struct {
 	Subject string
 	CertID  int
+}
+
+func (e RenewEvent) EventName() string {
+	return "renew"
 }
