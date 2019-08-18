@@ -42,7 +42,7 @@ func main() {
 	londo.CheckFatalError(err)
 
 	cron := gron.New()
-	cron.AddFunc(gron.Every(1*time.Minute), func() {
+	cron.AddFunc(gron.Every(1*time.Second), func() {
 		PublishExpiringCerts(db, mq)
 	})
 

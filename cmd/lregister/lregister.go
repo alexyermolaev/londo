@@ -18,14 +18,21 @@ func main() {
 	mq, err := londo.NewMQConnection(c)
 	londo.CheckFatalError(err)
 
-	_, err = mq.QueueDeclare("renew")
+	_, err = mq.QueueDeclare(londo.RenewEventName)
 	londo.CheckFatalError(err)
 
-	err = mq.QueueBind("renew", "renew")
+	err = mq.QueueBind(londo.RenewEventName, londo.RenewEventName)
 	londo.CheckFatalError(err)
 
-	err = mq.Consume("renew")
+	_, err = mq.QueueDeclare(londo.RevokeEventName)
 	londo.CheckFatalError(err)
+
+	err = mq.QueueBind(londo.RevokeEventName, londo.RevokeEventName)
+	londo.CheckFatalError(err)
+
+	go mq.Consume(londo.RenewEventName)
+
+	mq.Consume(londo.RevokeEventName)
 
 	log.Info("Shutting down RabbitMQ connection..")
 	mq.Shutdown()

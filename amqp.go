@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	eventHeader = "x-event-name"
-	renewEvent  = "renew"
+	eventHeader     = "x-event-name"
+	RenewEventName  = "renew"
+	RevokeEventName = "revoke"
 )
 
 type AMQP struct {
@@ -111,7 +112,7 @@ func (p AMQP) Consume(name string) error {
 			continue
 		}
 
-		err = p.handleEvent(event)
+		err = p.handleEvent(event, d.Body)
 		if err != nil {
 			logrus.Warn(err)
 			continue
@@ -128,15 +129,27 @@ func (p AMQP) Consume(name string) error {
 	return nil
 }
 
-func (p AMQP) handleEvent(event string) error {
+func (p AMQP) handleEvent(event string, body []byte) error {
 	switch event {
-	case renewEvent:
-		var e RenewEvent
-		err := json.Unmarshal(d.Body, &e)
+	case RenewEventName:
+		var s Subject
+		err := json.Unmarshal(body, &s)
 		if err != nil {
 			logrus.Warn("cannot unmarshal message")
 			return err
 		}
+		err = p.Emit(RevokeEvent{}, &s)
+		if err != nil {
+			logrus.Error(err)
+		}
+
+	case RevokeEventName:
+		var s Subject
+		err := json.Unmarshal(body, &s)
+		if err != nil {
+			logrus.Warn("cannot unmarshal message")
+		}
+		logrus.Infof("revoking %v", s.CertID)
 	default:
 		return errors.New("unrecognized event type")
 	}
@@ -162,6 +175,10 @@ func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
 		return RenewEvent{
 			Subject: s.Subject,
 			CertID:  s.CertID,
+		}, nil
+	case RevokeEvent:
+		return RevokeEvent{
+			CertID: s.CertID,
 		}, nil
 	default:
 		return nil, errors.New("unknown event type")
@@ -207,5 +224,13 @@ type RenewEvent struct {
 }
 
 func (e RenewEvent) EventName() string {
-	return renewEvent
+	return RenewEventName
+}
+
+type RevokeEvent struct {
+	CertID int
+}
+
+func (e RevokeEvent) EventName() string {
+	return RevokeEventName
 }
