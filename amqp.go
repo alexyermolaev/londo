@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 
 	"github.com/streadway/amqp"
@@ -65,11 +66,21 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	return nil
 }
 
-func (p AMQP) EmitRenew(s *Subject) error {
-	event := RenewEvent{
-		Subject: s.Subject,
-		CertID:  s.CertID,
+func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
+	switch e.(type) {
+	case RenewEvent:
+		return RenewEvent{
+			Subject: s.Subject,
+			CertID:  s.CertID,
+		}, nil
+	default:
+		return nil, errors.New("unknown event type")
 	}
+}
+
+func (p AMQP) Emit(e Event, s *Subject) error {
+
+	event, err := p.getEventType(e, s)
 
 	j, err := json.Marshal(&event)
 	if err != nil {
@@ -89,6 +100,10 @@ func (p AMQP) EmitRenew(s *Subject) error {
 	}
 
 	return ch.Publish(p.exchange, event.EventName(), false, false, msg)
+}
+
+type Event interface {
+	EventName() string
 }
 
 type RenewEvent struct {

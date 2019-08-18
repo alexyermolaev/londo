@@ -14,7 +14,7 @@ func PublishExpiringCerts(db *londo.MongoDB, mq *londo.AMQP) {
 
 	for _, e := range exp {
 		log.Infof("%v, %v", e.Subject, e.NotAfter)
-		if err := mq.EmitRenew(e); err != nil {
+		if err := mq.Emit(londo.RenewEvent{}, e); err != nil {
 			londo.CheckFatalError(err)
 		}
 	}
