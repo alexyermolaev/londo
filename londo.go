@@ -14,27 +14,29 @@ const (
 	RenewEventName     = "renew"
 	RevokeEventName    = "revoke"
 	EnrollEventName    = "enroll"
-	DeleteEventName    = "delete"
+	DeleteSubjEvent    = "delete"
 	CompleteEnrollName = "complete"
 	CSREventName       = "newcsr"
 )
 
-type AMQP struct {
+type Londo struct {
 	conn       *amqp.Connection
 	exchange   string
 	logChannel *LogChannel
 	config     *Config
+	db         *MongoDB
 }
 
-func (p *AMQP) Shutdown() {
+func (p *Londo) Shutdown() {
 	p.conn.Close()
 }
 
-func NewMQConnection(c *Config, lch *LogChannel) (*AMQP, error) {
-	p := &AMQP{
+func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*Londo, error) {
+	p := &Londo{
 		exchange:   "londo-events",
 		config:     c,
 		logChannel: lch,
+		db:         db,
 	}
 
 	var err error
@@ -49,7 +51,7 @@ func NewMQConnection(c *Config, lch *LogChannel) (*AMQP, error) {
 	return p, err
 }
 
-func (p *AMQP) ExchangeDeclare() error {
+func (p *Londo) ExchangeDeclare() error {
 	ch, err := p.conn.Channel()
 	if err != nil {
 		return err
@@ -66,7 +68,7 @@ func (p *AMQP) ExchangeDeclare() error {
 		nil)
 }
 
-func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
+func (p *Londo) QueueDeclare(name string) (amqp.Queue, error) {
 	ch, err := p.conn.Channel()
 	if err != nil {
 		return amqp.Queue{}, err
@@ -76,7 +78,7 @@ func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
 	return ch.QueueDeclare(name, true, false, false, false, nil)
 }
 
-func (p *AMQP) QueueBind(name string, key string) error {
+func (p *Londo) QueueBind(name string, key string) error {
 	ch, err := p.conn.Channel()
 	if err != nil {
 		return err
@@ -95,7 +97,7 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	return nil
 }
 
-func (p AMQP) Consume(name string) {
+func (p Londo) Consume(name string) {
 	ch, err := p.conn.Channel()
 	if err != nil {
 		p.logChannel.Abort <- err
@@ -136,7 +138,7 @@ func (p AMQP) Consume(name string) {
 	}
 }
 
-func (p AMQP) handleEvent(event string, body []byte) error {
+func (p Londo) handleEvent(event string, body []byte) error {
 	switch event {
 	case RenewEventName:
 		s, err := UnmarshalMsgBody(body)
@@ -153,7 +155,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 
 		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
 
-		err = p.Emit(DeleteEvent{}, &s)
+		err = p.Emit(DeleteSubjEvenet{}, &s)
 		if err != nil {
 			return err
 		}
@@ -181,6 +183,18 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 
 		p.logChannel.Info <- "Enrolling new subject: " + s.Subject
 
+	case DeleteSubjEvent:
+		s, err := UnmarshalMsgBody(body)
+		if err != nil {
+			return err
+		}
+
+		if err = p.db.DeleteSubject(s.CertID); err != nil {
+			return err
+		}
+
+		p.logChannel.Info <- "Deleted subject with id " + strconv.Itoa(s.CertID)
+
 	default:
 		return errors.New("unrecognized event type")
 	}
@@ -188,7 +202,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 	return nil
 }
 
-func (p AMQP) handleRevokeRequest(id int) error {
+func (p Londo) handleRevokeRequest(id int) error {
 	c := NewRestClient(*p.config)
 	resp, err := c.Revoke(id)
 	if err != nil {
@@ -202,7 +216,7 @@ func (p AMQP) handleRevokeRequest(id int) error {
 	return nil
 }
 
-func (p AMQP) parseEventHeader(h amqp.Table) (string, error) {
+func (p Londo) parseEventHeader(h amqp.Table) (string, error) {
 	raw, ok := h[eventHeader]
 	if !ok {
 		return "", errors.New("no " + eventHeader + " header found")
@@ -214,7 +228,7 @@ func (p AMQP) parseEventHeader(h amqp.Table) (string, error) {
 	return e, nil
 }
 
-func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
+func (p Londo) getEventType(e Event, s *Subject) (Event, error) {
 	switch e.(type) {
 	case RenewEvent:
 		return RenewEvent{
@@ -233,8 +247,8 @@ func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}, nil
-	case DeleteEvent:
-		return DeleteEvent{
+	case DeleteSubjEvenet:
+		return DeleteSubjEvenet{
 			CertID: s.CertID,
 		}, nil
 	case CSREvent:
@@ -257,7 +271,7 @@ func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
 	}
 }
 
-func (p AMQP) Emit(e Event, s *Subject) error {
+func (p Londo) Emit(e Event, s *Subject) error {
 
 	event, err := p.getEventType(e, s)
 

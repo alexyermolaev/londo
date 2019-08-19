@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func PublishExpiringCerts(db *londo.MongoDB, mq *londo.AMQP) {
+func PublishExpiringCerts(db *londo.MongoDB, mq *londo.Londo) {
 	exp, err := db.FindExpiringSubjects(720)
 	londo.CheckFatalError(err)
 
@@ -37,7 +37,7 @@ func main() {
 
 	lch := londo.CreateLogChannel()
 
-	mq, err := londo.NewMQConnection(c, lch)
+	mq, err := londo.NewMQConnection(c, db, lch)
 	londo.CheckFatalError(err)
 
 	log.Info("Declaring Exchange...")
@@ -51,7 +51,27 @@ func main() {
 
 	cron.Start()
 
-	select {}
+	_, err = mq.QueueDeclare(londo.DeleteSubjEvent)
+	londo.CheckFatalError(err)
+
+	err = mq.QueueBind(londo.DeleteSubjEvent, londo.DeleteSubjEvent)
+	londo.CheckFatalError(err)
+
+	go mq.Consume(londo.DeleteSubjEvent)
+
+	for {
+		select {
+		case i := <-lch.Info:
+			log.Info(i)
+		case w := <-lch.Warn:
+			log.Warn(w)
+		case e := <-lch.Err:
+			log.Error(e)
+		case a := <-lch.Abort:
+			log.Error(a)
+			break
+		}
+	}
 
 	log.Info("Disconnecting from the database")
 	db.Disconnect()

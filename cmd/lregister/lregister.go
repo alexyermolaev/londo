@@ -18,7 +18,7 @@ func main() {
 
 	lch := londo.CreateLogChannel()
 
-	mq, err := londo.NewMQConnection(c, lch)
+	mq, err := londo.NewMQConnection(c, nil, lch)
 	londo.CheckFatalError(err)
 
 	_, err = mq.QueueDeclare(londo.RenewEventName)
@@ -34,7 +34,7 @@ func main() {
 	//londo.CheckFatalError(err)
 
 	go mq.Consume(londo.RenewEventName)
-	go mq.Consume(londo.RevokeEventName)
+	//go mq.Consume(londo.RevokeEventName)
 
 	for {
 		select {

@@ -33,12 +33,12 @@ func (e EnrollEvent) EventName() string {
 	return EnrollEventName
 }
 
-type DeleteEvent struct {
+type DeleteSubjEvenet struct {
 	CertID int
 }
 
-func (e DeleteEvent) EventName() string {
-	return DeleteEventName
+func (e DeleteSubjEvenet) EventName() string {
+	return DeleteSubjEvent
 }
 
 type CompleteEnrollEvent struct {

@@ -2,6 +2,8 @@ package londo
 
 import (
 	"context"
+	"errors"
+	"go.mongodb.org/mongo-driver/bson"
 	"strconv"
 	"time"
 
@@ -77,6 +79,22 @@ func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 	}
 
 	return res, nil
+}
+
+func (m MongoDB) DeleteSubject(certid int) error {
+	col := m.client.Database(m.Name).Collection("subjects")
+
+	filter := bson.M{"cert_id": certid}
+
+	dres, err := col.DeleteOne(m.context, filter)
+	if err != nil {
+		return err
+	}
+
+	if dres.DeletedCount == 0 {
+		return errors.New("no certificate with id " + strconv.Itoa(certid) + " found")
+	}
+	return err
 }
 
 type Subject struct {
