@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -20,6 +21,7 @@ type AMQP struct {
 	conn       *amqp.Connection
 	exchange   string
 	logChannel *LogChannel
+	config     *Config
 }
 
 func (p *AMQP) Shutdown() {
@@ -29,6 +31,7 @@ func (p *AMQP) Shutdown() {
 func NewMQConnection(c *Config, lch *LogChannel) (*AMQP, error) {
 	p := &AMQP{
 		exchange:   "londo-events",
+		config:     c,
 		logChannel: lch,
 	}
 
@@ -90,10 +93,11 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	return nil
 }
 
-func (p AMQP) Consume(name string) error {
+func (p AMQP) Consume(name string) {
 	ch, err := p.conn.Channel()
 	if err != nil {
-		return err
+		p.logChannel.Abort <- err
+		return
 	}
 
 	deliver, err := ch.Consume(
@@ -104,7 +108,8 @@ func (p AMQP) Consume(name string) error {
 		false,
 		nil)
 	if err != nil {
-		return err
+		p.logChannel.Abort <- err
+		return
 	}
 
 	for d := range deliver {
@@ -125,10 +130,8 @@ func (p AMQP) Consume(name string) error {
 
 	err = ch.Cancel("", true)
 	if err != nil {
-		return err
+		p.logChannel.Err <- err
 	}
-
-	return nil
 }
 
 func (p AMQP) handleEvent(event string, body []byte) error {
@@ -140,10 +143,13 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 			logrus.Warn("cannot unmarshal message")
 			return err
 		}
-		err = p.Emit(RevokeEvent{}, &s)
+
+		err = p.handleRevoke(s.CertID)
 		if err != nil {
-			p.logChannel.Err <- err
+			return err
 		}
+
+		p.logChannel.Info <- "Revoked certificate ID: " + strconv.Itoa(s.CertID)
 
 	case RevokeEventName:
 		var s Subject
@@ -151,9 +157,25 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 		if err != nil {
 			logrus.Warn("cannot unmarshal message")
 		}
+
 		p.logChannel.Info <- "Revoking " + strconv.Itoa(s.CertID)
+
 	default:
 		return errors.New("unrecognized event type")
+	}
+
+	return nil
+}
+
+func (p AMQP) handleRevoke(id int) error {
+	c := NewRestClient(*p.config)
+	resp, err := c.Revoke(id)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != http.StatusCreated {
+		return err
 	}
 
 	return nil

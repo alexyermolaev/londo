@@ -19,12 +19,15 @@ type LogChannel struct {
 	Info chan string
 	Warn chan string
 	Err  chan error
+	// Third trimester vacuum cleaning!
+	Abort chan error
 }
 
 func CreateLogChannel() *LogChannel {
 	return &LogChannel{
-		Info: make(chan string),
-		Warn: make(chan string),
-		Err:  make(chan error),
+		Info:  make(chan string),
+		Warn:  make(chan string),
+		Err:   make(chan error),
+		Abort: make(chan error),
 	}
 }

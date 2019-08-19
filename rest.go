@@ -16,7 +16,10 @@ type RestAPI struct {
 }
 
 func NewRestClient(c Config) *RestAPI {
-	return &RestAPI{Client: resty.New()}
+	return &RestAPI{
+		Client: resty.New(),
+		config: &c,
+	}
 }
 
 func (r RestAPI) request() *resty.Request {
@@ -29,8 +32,7 @@ func (r RestAPI) request() *resty.Request {
 
 func (r RestAPI) Revoke(certid int) (*resty.Response, error) {
 	return r.request().
-		Post("https://" +
-			r.config.RestAPI.Url +
+		Post(r.config.RestAPI.Url +
 			r.config.RestAPI.Endpoints.Revoke +
 			"/" + strconv.Itoa(certid))
 }

@@ -27,14 +27,13 @@ func main() {
 	err = mq.QueueBind(londo.RenewEventName, londo.RenewEventName)
 	londo.CheckFatalError(err)
 
-	_, err = mq.QueueDeclare(londo.RevokeEventName)
-	londo.CheckFatalError(err)
-
-	err = mq.QueueBind(londo.RevokeEventName, londo.RevokeEventName)
-	londo.CheckFatalError(err)
+	//_, err = mq.QueueDeclare(londo.RevokeEventName)
+	//londo.CheckFatalError(err)
+	//
+	//err = mq.QueueBind(londo.RevokeEventName, londo.RevokeEventName)
+	//londo.CheckFatalError(err)
 
 	go mq.Consume(londo.RenewEventName)
-
 	go mq.Consume(londo.RevokeEventName)
 
 	for {
@@ -45,6 +44,9 @@ func main() {
 			log.Warn(w)
 		case e := <-lch.Err:
 			log.Error(e)
+		case a := <-lch.Abort:
+			log.Error(a)
+			break
 		}
 	}
 
