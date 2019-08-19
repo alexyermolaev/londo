@@ -23,3 +23,16 @@ sectigo:
   endpoints:
     revoke: "/revoke"
     enroll: "/enroll"
+
+cert_params:
+  country: "XX"
+  provice: "XX"
+  locality: "City"
+  street_address: "Sesame Street"
+  postal_code: 000000
+  organization: "Dead's Poet Society"
+  organizational_unit: "NA"
+  term: 365 # in days
+  bit_size: 2048
+  format_type: "x509CO"
+  

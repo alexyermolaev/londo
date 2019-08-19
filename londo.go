@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	eventHeader        = "x-event-name"
+	eventHeader = "x-event-name"
+
 	RenewEventName     = "renew"
 	RevokeEventName    = "revoke"
 	EnrollEventName    = "enroll"
@@ -182,7 +183,7 @@ func (p Londo) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		b, err := p.handEnrollRequest(s)
+		b, err := p.handEnrollRequest(&s)
 		if err != nil {
 			return err
 		}

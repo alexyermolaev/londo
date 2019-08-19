@@ -7,8 +7,17 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type csr struct {
-	Term int
+type certParams struct {
+	Country       string
+	Province      string
+	Locality      string
+	StreetAddress string
+	PostalCode    string
+	Organization  string
+	OrgUnit       string `yaml:"organizational_unit"`
+	Term          int
+	BitSize       int
+	FormatType    string
 }
 
 type endpoints struct {
@@ -35,16 +44,16 @@ type rabbitmq struct {
 type db struct {
 	Hostname string
 	Port     int
-	Uername  string
+	Username string
 	Password string
 	Name     string
 }
 
 type Config struct {
-	DB      db       `yaml:"mongodb"`
-	AMQP    rabbitmq `yaml:"amqp"`
-	RestAPI restapi  `yaml:"sectigo"`
-	CSR     csr      `yaml:"csr"`
+	DB         db         `yaml:"mongodb"`
+	AMQP       rabbitmq   `yaml:"amqp"`
+	RestAPI    restapi    `yaml:"sectigo"`
+	CertParams certParams `yaml:"csr"`
 }
 
 func ReadConfig() (*Config, error) {
