@@ -1,0 +1,24 @@
+# Database Configuration
+mongodb:
+  hostname: "localhost"
+  name: "londo"
+  username: ""
+  password: ""
+  port: 27017
+
+# RabbitMQ Configuration
+amqp:
+  hostname: "localhost"
+  username: "guest"
+  password: "guest"
+  exchange: "londo"
+  port: 5672
+
+# Sectigo REST API Configuration
+sectigo:
+  url: "https://cert-manager.com/api/ssl/v1"
+  username: ""
+  password: ""
+  customer_uri: ""
+  endpoints:
+    revoke: "/revoke"
