@@ -35,27 +35,16 @@ func (l *Londo) PublishExpiringCerts() *Londo {
 	return l
 }
 
-func (l *Londo) RenewService() *Londo {
-	log.Infof("Declaring %s queue...", RenewEventName)
-	_, err := l.amqp.QueueDeclare(RenewEventName)
+func (l *Londo) EventService(name string) *Londo {
+	log.Infof("Declaring %s queue...", name)
+	_, err := l.amqp.QueueDeclare(name)
 	CheckFatalError(err)
 
-	log.Infof("Binding exchange to %s queue...", RenewEventName)
+	log.Infof("Binding exchange to %s queue...", name)
+	err = l.amqp.QueueBind(name, name)
 	CheckFatalError(err)
 
-	go l.amqp.Consume(RenewEventName)
-
-	return l
-}
-
-func (l *Londo) DeleteSubjService() *Londo {
-	_, err := l.amqp.QueueDeclare(DeleteSubjEvent)
-	CheckFatalError(err)
-
-	err = l.amqp.QueueBind(DeleteSubjEvent, DeleteSubjEvent)
-	CheckFatalError(err)
-
-	go l.amqp.Consume(DeleteSubjEvent)
+	go l.amqp.Consume(name)
 
 	return l
 }

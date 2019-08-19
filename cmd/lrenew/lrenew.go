@@ -6,7 +6,7 @@ func main() {
 
 	londo.S("renew").
 		RabbitMQService().
-		RenewService().
+		EventService(londo.RenewEventName).
 		Run()
 	//log.Info("Shutting down RabbitMQ connection..")
 	//mq.Shutdown()

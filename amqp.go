@@ -31,8 +31,8 @@ type AMQP struct {
 	db         *MongoDB
 }
 
-func (p *AMQP) Shutdown() {
-	p.conn.Close()
+func (a *AMQP) Shutdown() {
+	a.conn.Close()
 }
 
 func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*AMQP, error) {
@@ -55,15 +55,15 @@ func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*AMQP, error) {
 	return p, err
 }
 
-func (p *AMQP) ExchangeDeclare() error {
-	ch, err := p.conn.Channel()
+func (a *AMQP) ExchangeDeclare() error {
+	ch, err := a.conn.Channel()
 	if err != nil {
 		return err
 	}
 	defer ch.Close()
 
 	return ch.ExchangeDeclare(
-		p.exchange,
+		a.exchange,
 		"topic",
 		true,
 		false,
@@ -72,8 +72,8 @@ func (p *AMQP) ExchangeDeclare() error {
 		nil)
 }
 
-func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
-	ch, err := p.conn.Channel()
+func (a *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
+	ch, err := a.conn.Channel()
 	if err != nil {
 		return amqp.Queue{}, err
 	}
@@ -82,8 +82,8 @@ func (p *AMQP) QueueDeclare(name string) (amqp.Queue, error) {
 	return ch.QueueDeclare(name, true, false, false, false, nil)
 }
 
-func (p *AMQP) QueueBind(name string, key string) error {
-	ch, err := p.conn.Channel()
+func (a *AMQP) QueueBind(name string, key string) error {
+	ch, err := a.conn.Channel()
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	if err = ch.QueueBind(
 		name,
 		key,
-		p.exchange,
+		a.exchange,
 		false,
 		nil,
 	); err != nil {
@@ -101,10 +101,10 @@ func (p *AMQP) QueueBind(name string, key string) error {
 	return nil
 }
 
-func (p AMQP) Consume(name string) {
-	ch, err := p.conn.Channel()
+func (a AMQP) Consume(name string) {
+	ch, err := a.conn.Channel()
 	if err != nil {
-		p.logChannel.Abort <- err
+		a.logChannel.Abort <- err
 		return
 	}
 
@@ -116,20 +116,20 @@ func (p AMQP) Consume(name string) {
 		false,
 		nil)
 	if err != nil {
-		p.logChannel.Abort <- err
+		a.logChannel.Abort <- err
 		return
 	}
 
 	for d := range deliver {
-		event, err := p.parseEventHeader(d.Headers)
+		event, err := a.parseEventHeader(d.Headers)
 		if err != nil {
-			p.logChannel.Err <- err
+			a.logChannel.Err <- err
 			continue
 		}
 
-		err = p.handleEvent(event, d.Body)
+		err = a.handleEvent(event, d.Body)
 		if err != nil {
-			p.logChannel.Err <- err
+			a.logChannel.Err <- err
 			continue
 		}
 
@@ -138,11 +138,11 @@ func (p AMQP) Consume(name string) {
 
 	err = ch.Cancel("", true)
 	if err != nil {
-		p.logChannel.Err <- err
+		a.logChannel.Err <- err
 	}
 }
 
-func (p AMQP) handleEvent(event string, body []byte) error {
+func (a AMQP) handleEvent(event string, body []byte) error {
 	switch event {
 	case RenewEventName:
 		s, err := UnmarshalMsgBody(body)
@@ -152,24 +152,24 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 
 		// In the future, this procedure may change.
 		// For now expiring certificates are being revoked before they are re-issued.
-		err = p.handleRevokeRequest(s.CertID)
+		err = a.handleRevokeRequest(s.CertID)
 		if err != nil {
 			return err
 		}
 
-		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
+		a.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
 
-		err = p.Emit(DeleteSubjEvenet{}, &s)
+		err = a.Emit(DeleteSubjEvenet{}, &s)
 		if err != nil {
 			return err
 		}
-		p.logChannel.Info <- "Requested " + s.Subject + " to be deleted from database"
+		a.logChannel.Info <- "Requested " + s.Subject + " to be deleted from database"
 
-		err = p.Emit(EnrollEvent{}, &s)
+		err = a.Emit(EnrollEvent{}, &s)
 		if err != nil {
 			return err
 		}
-		p.logChannel.Info <- "Requested new enrollment for " + s.Subject
+		a.logChannel.Info <- "Requested new enrollment for " + s.Subject
 
 	case RevokeEventName:
 		s, err := UnmarshalMsgBody(body)
@@ -177,7 +177,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
+		a.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
 
 	case EnrollEventName:
 		s, err := UnmarshalMsgBody(body)
@@ -185,12 +185,12 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		key, err := GeneratePrivateKey(p.config.CertParams.BitSize)
+		key, err := GeneratePrivateKey(a.config.CertParams.BitSize)
 		if err != nil {
 			return err
 		}
 
-		csrBytes, err := GenerateCSR(key, "", p.config)
+		csrBytes, err := GenerateCSR(key, "", a.config)
 		if err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		//b, err := p.handEnrollRequest(&s)
+		//b, err := a.handEnrollRequest(&s)
 		//if err != nil {
 		//	return err
 		//}
@@ -221,12 +221,12 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 		//s.CertID = jr.SslId
 		//s.OrderID = jr.RenewID
 		//
-		//err = p.Emit(CollectEvent{}, &s)
+		//err = a.Emit(CollectEvent{}, &s)
 		//if err != nil {
 		//	return err
 		//}
 
-		p.logChannel.Info <- "Enrolled new subject: " + s.Subject
+		a.logChannel.Info <- "Enrolled new subject: " + s.Subject
 
 	case DeleteSubjEvent:
 		s, err := UnmarshalMsgBody(body)
@@ -234,11 +234,11 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		if err = p.db.DeleteSubject(s.CertID); err != nil {
+		if err = a.db.DeleteSubject(s.CertID); err != nil {
 			return err
 		}
 
-		p.logChannel.Info <- "Deleted subject with id " + strconv.Itoa(s.CertID)
+		a.logChannel.Info <- "Deleted subject with id " + strconv.Itoa(s.CertID)
 
 	default:
 		return errors.New("unrecognized event type")
@@ -247,8 +247,8 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 	return nil
 }
 
-func (p AMQP) handEnrollRequest(s *Subject) ([]byte, error) {
-	c := NewRestClient(*p.config)
+func (a AMQP) handEnrollRequest(s *Subject) ([]byte, error) {
+	c := NewRestClient(*a.config)
 	res, err := c.Enroll(s)
 	if err != nil {
 		return nil, err
@@ -261,8 +261,8 @@ func (p AMQP) handEnrollRequest(s *Subject) ([]byte, error) {
 	return res.Body(), nil
 }
 
-func (p AMQP) handleRevokeRequest(id int) error {
-	c := NewRestClient(*p.config)
+func (a AMQP) handleRevokeRequest(id int) error {
+	c := NewRestClient(*a.config)
 	res, err := c.Revoke(id)
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func (p AMQP) handleRevokeRequest(id int) error {
 	return nil
 }
 
-func (p AMQP) parseEventHeader(h amqp.Table) (string, error) {
+func (a AMQP) parseEventHeader(h amqp.Table) (string, error) {
 	raw, ok := h[eventHeader]
 	if !ok {
 		return "", errors.New("no " + eventHeader + " header found")
@@ -287,7 +287,7 @@ func (p AMQP) parseEventHeader(h amqp.Table) (string, error) {
 	return e, nil
 }
 
-func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
+func (a AMQP) getEventType(e Event, s *Subject) (Event, error) {
 	switch e.(type) {
 	case RenewEvent:
 		return RenewEvent{
@@ -335,16 +335,16 @@ func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
 	}
 }
 
-func (p AMQP) Emit(e Event, s *Subject) error {
+func (a AMQP) Emit(e Event, s *Subject) error {
 
-	event, err := p.getEventType(e, s)
+	event, err := a.getEventType(e, s)
 
 	j, err := json.Marshal(&event)
 	if err != nil {
 		return err
 	}
 
-	ch, err := p.conn.Channel()
+	ch, err := a.conn.Channel()
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (p AMQP) Emit(e Event, s *Subject) error {
 	}
 
 	return ch.Publish(
-		p.exchange,
+		a.exchange,
 		event.EventName(),
 		false,
 		false,

@@ -11,7 +11,7 @@ type certParams struct {
 	Country, Province, Locality, StreetAddress, PostalCode, Organization string
 	OrgUnit                                                              string `yaml:"organizational_unit"`
 	Term                                                                 int
-	BitSize                                                              int
+	BitSize                                                              int `yaml:"bit_size"`
 	FormatType                                                           string
 }
 
@@ -39,7 +39,7 @@ type Config struct {
 	DB         db         `yaml:"mongodb"`
 	AMQP       rabbitmq   `yaml:"amqp"`
 	RestAPI    restapi    `yaml:"sectigo"`
-	CertParams certParams `yaml:"csr"`
+	CertParams certParams `yaml:"cert_params"`
 }
 
 func ReadConfig() (*Config, error) {

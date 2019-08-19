@@ -7,7 +7,7 @@ func main() {
 	londo.S("db").
 		DbService().
 		RabbitMQService().
-		DeleteSubjService().
+		EventService(londo.DeleteSubjEvent).
 		PublishExpiringCerts().
 		Run()
 	//log.Info("Disconnecting from the database")
