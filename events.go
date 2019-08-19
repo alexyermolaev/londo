@@ -1,0 +1,65 @@
+package londo
+
+type Event interface {
+	EventName() string
+}
+
+type RenewEvent struct {
+	Subject  string
+	CertID   int
+	AltNames []string
+	Targets  []string
+}
+
+func (e RenewEvent) EventName() string {
+	return RenewEventName
+}
+
+type RevokeEvent struct {
+	CertID int
+}
+
+func (e RevokeEvent) EventName() string {
+	return RevokeEventName
+}
+
+type EnrollEvent struct {
+	Subject  string
+	AltNames []string
+	Targets  []string
+}
+
+func (e EnrollEvent) EventName() string {
+	return EnrollEventName
+}
+
+type DeleteEvent struct {
+	CertID int
+}
+
+func (e DeleteEvent) EventName() string {
+	return DeleteEventName
+}
+
+type CompleteEnrollEvent struct {
+	Subject     string
+	CertID      int
+	OrderID     string
+	Certificate string
+}
+
+func (e CompleteEnrollEvent) EventName() string {
+	return CompleteEnrollName
+}
+
+type CSREvent struct {
+	Subject    string
+	CSR        string
+	PrivateKey string
+	AltNames   []string
+	Targets    []string
+}
+
+func (e CSREvent) EventName() string {
+	return CSREventName
+}

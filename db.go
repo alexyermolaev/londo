@@ -91,4 +91,5 @@ type Subject struct {
 	UpdatedAt   time.Time `bson:"updated_at"`
 	Retired     bool      `bson:"retired"`
 	Targets     []string  `bson:"targets"`
+	AltNames    []string  `bson:"alt_names"`
 }

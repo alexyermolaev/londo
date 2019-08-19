@@ -6,15 +6,17 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/streadway/amqp"
 )
 
 const (
-	eventHeader     = "x-event-name"
-	RenewEventName  = "renew"
-	RevokeEventName = "revoke"
+	eventHeader        = "x-event-name"
+	RenewEventName     = "renew"
+	RevokeEventName    = "revoke"
+	EnrollEventName    = "enroll"
+	DeleteEventName    = "delete"
+	CompleteEnrollName = "complete"
+	CSREventName       = "newcsr"
 )
 
 type AMQP struct {
@@ -137,28 +139,47 @@ func (p AMQP) Consume(name string) {
 func (p AMQP) handleEvent(event string, body []byte) error {
 	switch event {
 	case RenewEventName:
-		var s Subject
-		err := json.Unmarshal(body, &s)
-		if err != nil {
-			logrus.Warn("cannot unmarshal message")
-			return err
-		}
-
-		err = p.handleRevoke(s.CertID)
+		s, err := UnmarshalMsgBody(body)
 		if err != nil {
 			return err
 		}
 
-		p.logChannel.Info <- "Revoked certificate ID: " + strconv.Itoa(s.CertID)
+		// In the future, this procedure may change.
+		// For now expiring certificates are being revoked before they are re-issued.
+		err = p.handleRevokeRequest(s.CertID)
+		if err != nil {
+			return err
+		}
+
+		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
+
+		err = p.Emit(DeleteEvent{}, &s)
+		if err != nil {
+			return err
+		}
+		p.logChannel.Info <- "Requested " + s.Subject + " to be deleted from database"
+
+		err = p.Emit(EnrollEvent{}, &s)
+		if err != nil {
+			return err
+		}
+		p.logChannel.Info <- "Requested new enrollment for " + s.Subject
 
 	case RevokeEventName:
-		var s Subject
-		err := json.Unmarshal(body, &s)
+		s, err := UnmarshalMsgBody(body)
 		if err != nil {
-			logrus.Warn("cannot unmarshal message")
+			return err
 		}
 
-		p.logChannel.Info <- "Revoking " + strconv.Itoa(s.CertID)
+		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
+
+	case EnrollEventName:
+		s, err := UnmarshalMsgBody(body)
+		if err != nil {
+			return err
+		}
+
+		p.logChannel.Info <- "Enrolling new subject: " + s.Subject
 
 	default:
 		return errors.New("unrecognized event type")
@@ -167,7 +188,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 	return nil
 }
 
-func (p AMQP) handleRevoke(id int) error {
+func (p AMQP) handleRevokeRequest(id int) error {
 	c := NewRestClient(*p.config)
 	resp, err := c.Revoke(id)
 	if err != nil {
@@ -197,12 +218,39 @@ func (p AMQP) getEventType(e Event, s *Subject) (Event, error) {
 	switch e.(type) {
 	case RenewEvent:
 		return RenewEvent{
-			Subject: s.Subject,
-			CertID:  s.CertID,
+			Subject:  s.Subject,
+			CertID:   s.CertID,
+			AltNames: s.AltNames,
+			Targets:  s.Targets,
 		}, nil
 	case RevokeEvent:
 		return RevokeEvent{
 			CertID: s.CertID,
+		}, nil
+	case EnrollEvent:
+		return EnrollEvent{
+			Subject:  s.Subject,
+			AltNames: s.AltNames,
+			Targets:  s.Targets,
+		}, nil
+	case DeleteEvent:
+		return DeleteEvent{
+			CertID: s.CertID,
+		}, nil
+	case CSREvent:
+		return CSREvent{
+			Subject:    s.Subject,
+			CSR:        s.CSR,
+			PrivateKey: s.PrivateKey,
+			AltNames:   s.AltNames,
+			Targets:    s.Targets,
+		}, nil
+	case CompleteEnrollEvent:
+		return CompleteEnrollEvent{
+			Subject:     s.Subject,
+			CertID:      s.CertID,
+			OrderID:     s.OrderID,
+			Certificate: s.Certificate,
 		}, nil
 	default:
 		return nil, errors.New("unknown event type")
@@ -236,25 +284,4 @@ func (p AMQP) Emit(e Event, s *Subject) error {
 		false,
 		false,
 		msg)
-}
-
-type Event interface {
-	EventName() string
-}
-
-type RenewEvent struct {
-	Subject string
-	CertID  int
-}
-
-func (e RenewEvent) EventName() string {
-	return RenewEventName
-}
-
-type RevokeEvent struct {
-	CertID int
-}
-
-func (e RevokeEvent) EventName() string {
-	return RevokeEventName
 }
