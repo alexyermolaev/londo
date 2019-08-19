@@ -22,3 +22,4 @@ sectigo:
   customer_uri: ""
   endpoints:
     revoke: "/revoke"
+    enroll: "/enroll"

@@ -17,6 +17,7 @@ const (
 	DeleteSubjEvent    = "delete"
 	CompleteEnrollName = "complete"
 	CSREventName       = "newcsr"
+	CollectEventName   = "collect"
 )
 
 type Londo struct {
@@ -181,7 +182,26 @@ func (p Londo) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		p.logChannel.Info <- "Enrolling new subject: " + s.Subject
+		b, err := p.handEnrollRequest(s)
+		if err != nil {
+			return err
+		}
+
+		var jr EnrollResponse
+		err = json.Unmarshal(b, &jr)
+		if err != nil {
+			return err
+		}
+
+		s.CertID = jr.SslId
+		s.OrderID = jr.RenewID
+
+		err = p.Emit(CollectEvent{}, &s)
+		if err != nil {
+			return err
+		}
+
+		p.logChannel.Info <- "Enrolled new subject: " + s.Subject
 
 	case DeleteSubjEvent:
 		s, err := UnmarshalMsgBody(body)
@@ -202,14 +222,28 @@ func (p Londo) handleEvent(event string, body []byte) error {
 	return nil
 }
 
+func (p Londo) handEnrollRequest(s *Subject) ([]byte, error) {
+	c := NewRestClient(*p.config)
+	res, err := c.Enroll(s)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() != http.StatusOK {
+		return nil, err
+	}
+
+	return res.Body(), nil
+}
+
 func (p Londo) handleRevokeRequest(id int) error {
 	c := NewRestClient(*p.config)
-	resp, err := c.Revoke(id)
+	res, err := c.Revoke(id)
 	if err != nil {
 		return err
 	}
 
-	if resp.StatusCode() != http.StatusCreated {
+	if res.StatusCode() != http.StatusCreated {
 		return err
 	}
 
@@ -237,20 +271,20 @@ func (p Londo) getEventType(e Event, s *Subject) (Event, error) {
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}, nil
+
 	case RevokeEvent:
-		return RevokeEvent{
-			CertID: s.CertID,
-		}, nil
+		return RevokeEvent{CertID: s.CertID}, nil
+
 	case EnrollEvent:
 		return EnrollEvent{
 			Subject:  s.Subject,
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}, nil
+
 	case DeleteSubjEvenet:
-		return DeleteSubjEvenet{
-			CertID: s.CertID,
-		}, nil
+		return DeleteSubjEvenet{CertID: s.CertID}, nil
+
 	case CSREvent:
 		return CSREvent{
 			Subject:    s.Subject,
@@ -259,6 +293,7 @@ func (p Londo) getEventType(e Event, s *Subject) (Event, error) {
 			AltNames:   s.AltNames,
 			Targets:    s.Targets,
 		}, nil
+
 	case CompleteEnrollEvent:
 		return CompleteEnrollEvent{
 			Subject:     s.Subject,
@@ -266,6 +301,10 @@ func (p Londo) getEventType(e Event, s *Subject) (Event, error) {
 			OrderID:     s.OrderID,
 			Certificate: s.Certificate,
 		}, nil
+
+	case CollectEvent:
+		return CollectEvent{CertID: s.CertID}, nil
+
 	default:
 		return nil, errors.New("unknown event type")
 	}

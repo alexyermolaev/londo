@@ -63,3 +63,11 @@ type CSREvent struct {
 func (e CSREvent) EventName() string {
 	return CSREventName
 }
+
+type CollectEvent struct {
+	CertID int
+}
+
+func (e CollectEvent) EventName() string {
+	return CollectEventName
+}

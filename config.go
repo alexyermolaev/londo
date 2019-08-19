@@ -7,8 +7,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type csr struct {
+	Term int
+}
+
 type endpoints struct {
 	Revoke string
+	Enroll string
 }
 
 type restapi struct {
@@ -39,6 +44,7 @@ type Config struct {
 	DB      db       `yaml:"mongodb"`
 	AMQP    rabbitmq `yaml:"amqp"`
 	RestAPI restapi  `yaml:"sectigo"`
+	CSR     csr      `yaml:"csr"`
 }
 
 func ReadConfig() (*Config, error) {
