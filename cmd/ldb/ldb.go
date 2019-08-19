@@ -34,7 +34,10 @@ func main() {
 	log.Infof("Connecting to %v database", db.Name)
 
 	log.Info("Connecting to RabbitMQ...")
-	mq, err := londo.NewMQConnection(c)
+
+	lch := londo.CreateLogChannel()
+
+	mq, err := londo.NewMQConnection(c, lch)
 	londo.CheckFatalError(err)
 
 	log.Info("Declaring Exchange...")

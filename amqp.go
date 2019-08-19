@@ -17,17 +17,19 @@ const (
 )
 
 type AMQP struct {
-	conn     *amqp.Connection
-	exchange string
+	conn       *amqp.Connection
+	exchange   string
+	logChannel *LogChannel
 }
 
 func (p *AMQP) Shutdown() {
 	p.conn.Close()
 }
 
-func NewMQConnection(c *Config) (*AMQP, error) {
+func NewMQConnection(c *Config, lch *LogChannel) (*AMQP, error) {
 	p := &AMQP{
-		exchange: "londo-events",
+		exchange:   "londo-events",
+		logChannel: lch,
 	}
 
 	var err error
@@ -108,13 +110,13 @@ func (p AMQP) Consume(name string) error {
 	for d := range deliver {
 		event, err := p.parseEventHeader(d.Headers)
 		if err != nil {
-			logrus.Warn(err)
+			p.logChannel.Err <- err
 			continue
 		}
 
 		err = p.handleEvent(event, d.Body)
 		if err != nil {
-			logrus.Warn(err)
+			p.logChannel.Err <- err
 			continue
 		}
 
@@ -140,7 +142,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 		}
 		err = p.Emit(RevokeEvent{}, &s)
 		if err != nil {
-			logrus.Error(err)
+			p.logChannel.Err <- err
 		}
 
 	case RevokeEventName:
@@ -149,7 +151,7 @@ func (p AMQP) handleEvent(event string, body []byte) error {
 		if err != nil {
 			logrus.Warn("cannot unmarshal message")
 		}
-		logrus.Infof("revoking %v", s.CertID)
+		p.logChannel.Info <- "Revoking " + strconv.Itoa(s.CertID)
 	default:
 		return errors.New("unrecognized event type")
 	}

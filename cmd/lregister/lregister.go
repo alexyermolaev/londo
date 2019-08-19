@@ -15,7 +15,10 @@ func main() {
 	londo.CheckFatalError(err)
 
 	log.Info("Connecting to RabbitMQ...")
-	mq, err := londo.NewMQConnection(c)
+
+	lch := londo.CreateLogChannel()
+
+	mq, err := londo.NewMQConnection(c, lch)
 	londo.CheckFatalError(err)
 
 	_, err = mq.QueueDeclare(londo.RenewEventName)
@@ -32,7 +35,18 @@ func main() {
 
 	go mq.Consume(londo.RenewEventName)
 
-	mq.Consume(londo.RevokeEventName)
+	go mq.Consume(londo.RevokeEventName)
+
+	for {
+		select {
+		case i := <-lch.Info:
+			log.Info(i)
+		case w := <-lch.Warn:
+			log.Warn(w)
+		case e := <-lch.Err:
+			log.Error(e)
+		}
+	}
 
 	log.Info("Shutting down RabbitMQ connection..")
 	mq.Shutdown()

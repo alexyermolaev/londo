@@ -14,3 +14,17 @@ func ConfigureLogging(level logrus.Level) {
 		FullTimestamp: true,
 	})
 }
+
+type LogChannel struct {
+	Info chan string
+	Warn chan string
+	Err  chan error
+}
+
+func CreateLogChannel() *LogChannel {
+	return &LogChannel{
+		Info: make(chan string),
+		Warn: make(chan string),
+		Err:  make(chan error),
+	}
+}
