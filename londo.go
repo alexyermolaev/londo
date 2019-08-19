@@ -48,20 +48,38 @@ func (l *Londo) RenewService() *Londo {
 	return l
 }
 
-func (l *Londo) DbService() *Londo {
-	var err error
-
-	log.Info("Connecting to the database...")
-	l.db, err = NewDBConnection(l.config)
-	CheckFatalError(err)
-
-	_, err = l.amqp.QueueDeclare(DeleteSubjEvent)
+func (l *Londo) DeleteSubjService() *Londo {
+	_, err := l.amqp.QueueDeclare(DeleteSubjEvent)
 	CheckFatalError(err)
 
 	err = l.amqp.QueueBind(DeleteSubjEvent, DeleteSubjEvent)
 	CheckFatalError(err)
 
 	go l.amqp.Consume(DeleteSubjEvent)
+
+	return l
+}
+
+func (l *Londo) RabbitMQService() *Londo {
+	var err error
+
+	log.Info("Connecting to RabbitMQ...")
+	l.amqp, err = NewMQConnection(l.config, l.db, l.logChannel)
+	CheckFatalError(err)
+
+	log.Infof("Declaring %s exchange...", l.amqp.exchange)
+	err = l.amqp.ExchangeDeclare()
+	CheckFatalError(err)
+
+	return l
+}
+
+func (l *Londo) DbService() *Londo {
+	var err error
+
+	log.Info("Connecting to the database...")
+	l.db, err = NewDBConnection(l.config)
+	CheckFatalError(err)
 
 	return l
 }
@@ -83,14 +101,6 @@ func S(name string) *Londo {
 	CheckFatalError(err)
 
 	l.logChannel = CreateLogChannel()
-
-	log.Info("Connecting to RabbitMQ...")
-	l.amqp, err = NewMQConnection(l.config, l.db, l.logChannel)
-	CheckFatalError(err)
-
-	log.Infof("Declaring %s exchange...", l.amqp.exchange)
-	err = l.amqp.ExchangeDeclare()
-	CheckFatalError(err)
 
 	return l
 }
