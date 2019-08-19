@@ -13,62 +13,59 @@ const (
 )
 
 type Londo struct {
-	Name   string
-	db     *MongoDB
-	amqp   *AMQP
-	config *Config
+	Name       string
+	db         *MongoDB
+	amqp       *AMQP
+	config     *Config
+	logChannel *LogChannel
 }
 
-func (l *Londo) publishExpiringCerts() {
-	exp, err := l.db.FindExpiringSubjects(720)
-	CheckFatalError(err)
-
-	for _, e := range exp {
-		log.Infof("%v, %v", e.Subject, e.NotAfter)
-		if err := l.amqp.Emit(RenewEvent{}, e); err != nil {
-			CheckFatalError(err)
-		}
-	}
-}
-
-func (l *Londo) dbService() error {
+func (l *Londo) PublishExpiringCerts() *Londo {
 	cron := gron.New()
+
 	cron.AddFunc(gron.Every(1*time.Minute), func() {
-		l.publishExpiringCerts()
+		exp, err := l.db.FindExpiringSubjects(720)
+		CheckFatalError(err)
+
+		for _, e := range exp {
+			log.Infof("%v, %v", e.Subject, e.NotAfter)
+			if err := l.amqp.Emit(RenewEvent{}, e); err != nil {
+				CheckFatalError(err)
+			}
+		}
 	})
+
 	cron.Start()
 
+	return l
+}
+
+func (l *Londo) RenewService() *Londo {
+	log.Infof("Declaring %s queue...", RenewEventName)
+	_, err := l.amqp.QueueDeclare(RenewEventName)
+	CheckFatalError(err)
+
+	log.Infof("Binding exchange to %s queue...", RenewEventName)
+	CheckFatalError(err)
+
+	go l.amqp.Consume(RenewEventName)
+
+	return l
+}
+
+func (l *Londo) DbService() *Londo {
 	_, err := l.amqp.QueueDeclare(DeleteSubjEvent)
-	if err != nil {
-		return err
-	}
+	CheckFatalError(err)
 
 	err = l.amqp.QueueBind(DeleteSubjEvent, DeleteSubjEvent)
-	if err != nil {
-		return err
-	}
+	CheckFatalError(err)
 
 	go l.amqp.Consume(DeleteSubjEvent)
 
-	return nil
+	return l
 }
 
-func (l *Londo) renewService() error {
-	log.Infof("Declaring %s queue...", RenewEventName)
-	_, err := l.amqp.QueueDeclare(RenewEventName)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Binding exchange to %s queue...", RenewEventName)
-	if err = l.amqp.QueueBind(RenewEventName, RenewEventName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func Start(name string, db bool, t int) {
+func S(name string) *Londo {
 	l := &Londo{
 		Name: name,
 	}
@@ -84,40 +81,32 @@ func Start(name string, db bool, t int) {
 	l.config, err = ReadConfig()
 	CheckFatalError(err)
 
-	if db {
-		l.db, err = NewDBConnection(l.config)
-		CheckFatalError(err)
-		log.Infof("Connecting to %s database", l.db.Name)
-	}
+	l.logChannel = CreateLogChannel()
 
-	lch := CreateLogChannel()
+	log.Info("Connecting to the database...")
+	l.db, err = NewDBConnection(l.config)
 
 	log.Info("Connecting to RabbitMQ...")
-	l.amqp, err = NewMQConnection(l.config, l.db, lch)
+	l.amqp, err = NewMQConnection(l.config, l.db, l.logChannel)
 	CheckFatalError(err)
 
 	log.Infof("Declaring %s exchange...", l.amqp.exchange)
 	err = l.amqp.ExchangeDeclare()
 	CheckFatalError(err)
 
-	switch t {
-	case DbService:
-		err = l.dbService()
-		CheckFatalError(err)
-	case RenewService:
-		err = l.renewService()
-		CheckFatalError(err)
-	}
+	return l
+}
 
+func (l *Londo) Run() {
 	for {
 		select {
-		case i := <-lch.Info:
+		case i := <-l.logChannel.Info:
 			log.Info(i)
-		case w := <-lch.Warn:
+		case w := <-l.logChannel.Warn:
 			log.Warn(w)
-		case e := <-lch.Err:
+		case e := <-l.logChannel.Err:
 			log.Error(e)
-		case a := <-lch.Abort:
+		case a := <-l.logChannel.Abort:
 			log.Error(a)
 			break
 		}

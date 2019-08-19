@@ -4,8 +4,10 @@ import "github.com/alexyermolaev/londo"
 
 func main() {
 
-	londo.Start("db", true, londo.DbService)
-
+	londo.S("db").
+		DbService().
+		PublishExpiringCerts().
+		Run()
 	//log.Info("Disconnecting from the database")
 	//db.Disconnect()
 	//
