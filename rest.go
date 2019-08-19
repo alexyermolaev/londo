@@ -11,15 +11,8 @@ const (
 )
 
 type enrollBody struct {
-	orgId             int
-	csr               string
-	subjAltNames      string
-	certType          int
-	numberServers     int
-	serverType        int
-	term              int
-	comments          string
-	externalRequester string
+	orgId, numberServers, certType, serverType, term int
+	csr, subjAltNames, comments, externalRequester   string
 }
 
 type EnrollResponse struct {
@@ -61,7 +54,7 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 			certType:          1729,
 			numberServers:     0,
 			serverType:        -1,
-			term:              r.config.CSR.Term,
+			term:              r.config.CertParams.Term,
 			comments:          "automated request by londo",
 			externalRequester: "",
 		}).

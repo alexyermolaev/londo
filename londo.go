@@ -2,8 +2,10 @@ package londo
 
 import (
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/streadway/amqp"
@@ -183,24 +185,46 @@ func (p Londo) handleEvent(event string, body []byte) error {
 			return err
 		}
 
-		b, err := p.handEnrollRequest(&s)
+		key, err := GeneratePrivateKey(p.config.CertParams.BitSize)
 		if err != nil {
 			return err
 		}
 
-		var jr EnrollResponse
-		err = json.Unmarshal(b, &jr)
+		csrBytes, err := GenerateCSR(key, "", p.config)
 		if err != nil {
 			return err
 		}
 
-		s.CertID = jr.SslId
-		s.OrderID = jr.RenewID
+		csr := &pem.Block{
+			Type:    "CERTIFICATE REQUEST",
+			Headers: nil,
+			Bytes:   csrBytes,
+		}
 
-		err = p.Emit(CollectEvent{}, &s)
-		if err != nil {
+		err = pem.Encode(os.Stdout, csr)
+
+		if err = pem.Encode(os.Stdout, csr); err != nil {
 			return err
 		}
+
+		//b, err := p.handEnrollRequest(&s)
+		//if err != nil {
+		//	return err
+		//}
+		//
+		//var jr EnrollResponse
+		//err = json.Unmarshal(b, &jr)
+		//if err != nil {
+		//	return err
+		//}
+		//
+		//s.CertID = jr.SslId
+		//s.OrderID = jr.RenewID
+		//
+		//err = p.Emit(CollectEvent{}, &s)
+		//if err != nil {
+		//	return err
+		//}
 
 		p.logChannel.Info <- "Enrolled new subject: " + s.Subject
 

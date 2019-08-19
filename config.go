@@ -8,16 +8,11 @@ import (
 )
 
 type certParams struct {
-	Country       string
-	Province      string
-	Locality      string
-	StreetAddress string
-	PostalCode    string
-	Organization  string
-	OrgUnit       string `yaml:"organizational_unit"`
-	Term          int
-	BitSize       int
-	FormatType    string
+	Country, Province, Locality, StreetAddress, PostalCode, Organization string
+	OrgUnit                                                              string `yaml:"organizational_unit"`
+	Term                                                                 int
+	BitSize                                                              int
+	FormatType                                                           string
 }
 
 type endpoints struct {
@@ -26,27 +21,18 @@ type endpoints struct {
 }
 
 type restapi struct {
-	Url         string
-	Username    string
-	Password    string
-	CustomerURI string
-	Endpoints   endpoints
+	Url, Username, Password, CustomerURI string
+	Endpoints                            endpoints
 }
 
 type rabbitmq struct {
-	Hostname string
-	Port     int
-	Username string
-	Password string
-	Exchange string
+	Hostname, Username, Password, Exchange string
+	Port                                   int
 }
 
 type db struct {
-	Hostname string
-	Port     int
-	Username string
-	Password string
-	Name     string
+	Hostname, Username, Password, Name string
+	Port                               int
 }
 
 type Config struct {
