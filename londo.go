@@ -1,365 +1,125 @@
 package londo
 
 import (
-	"encoding/json"
-	"encoding/pem"
-	"errors"
-	"net/http"
-	"os"
-	"strconv"
+	"time"
 
-	"github.com/streadway/amqp"
+	"github.com/roylee0704/gron"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	eventHeader = "x-event-name"
-
-	RenewEventName     = "renew"
-	RevokeEventName    = "revoke"
-	EnrollEventName    = "enroll"
-	DeleteSubjEvent    = "delete"
-	CompleteEnrollName = "complete"
-	CSREventName       = "newcsr"
-	CollectEventName   = "collect"
+	DbService    = 1
+	RenewService = 2
 )
 
 type Londo struct {
-	conn       *amqp.Connection
-	exchange   string
-	logChannel *LogChannel
-	config     *Config
-	db         *MongoDB
+	Name   string
+	db     *MongoDB
+	amqp   *AMQP
+	config *Config
 }
 
-func (p *Londo) Shutdown() {
-	p.conn.Close()
-}
+func (l *Londo) publishExpiringCerts() {
+	exp, err := l.db.FindExpiringSubjects(720)
+	CheckFatalError(err)
 
-func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*Londo, error) {
-	p := &Londo{
-		exchange:   "londo-events",
-		config:     c,
-		logChannel: lch,
-		db:         db,
+	for _, e := range exp {
+		log.Infof("%v, %v", e.Subject, e.NotAfter)
+		if err := l.amqp.Emit(RenewEvent{}, e); err != nil {
+			CheckFatalError(err)
+		}
 	}
+}
+
+func (l *Londo) dbService() error {
+	cron := gron.New()
+	cron.AddFunc(gron.Every(1*time.Minute), func() {
+		l.publishExpiringCerts()
+	})
+	cron.Start()
+
+	_, err := l.amqp.QueueDeclare(DeleteSubjEvent)
+	if err != nil {
+		return err
+	}
+
+	err = l.amqp.QueueBind(DeleteSubjEvent, DeleteSubjEvent)
+	if err != nil {
+		return err
+	}
+
+	go l.amqp.Consume(DeleteSubjEvent)
+
+	return nil
+}
+
+func (l *Londo) renewService() error {
+	log.Infof("Declaring %s queue...", RenewEventName)
+	_, err := l.amqp.QueueDeclare(RenewEventName)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Binding exchange to %s queue...", RenewEventName)
+	if err = l.amqp.QueueBind(RenewEventName, RenewEventName); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Start(name string, db bool, t int) {
+	l := &Londo{
+		Name: name,
+	}
+
+	ConfigureLogging(log.DebugLevel)
+
+	log.Infof("Starting %s service...", l.Name)
+
+	log.Info("Reading configuration...")
 
 	var err error
 
-	p.conn, err = amqp.Dial(
-		"amqp://" + c.AMQP.Username + ":" + c.AMQP.Password + "@" + c.AMQP.Hostname + ":" +
-			strconv.Itoa(c.AMQP.Port))
-	if err != nil {
-		return p, err
+	l.config, err = ReadConfig()
+	CheckFatalError(err)
+
+	if db {
+		l.db, err = NewDBConnection(l.config)
+		CheckFatalError(err)
+		log.Infof("Connecting to %s database", l.db.Name)
 	}
 
-	return p, err
-}
+	lch := CreateLogChannel()
 
-func (p *Londo) ExchangeDeclare() error {
-	ch, err := p.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
+	log.Info("Connecting to RabbitMQ...")
+	l.amqp, err = NewMQConnection(l.config, l.db, lch)
+	CheckFatalError(err)
 
-	return ch.ExchangeDeclare(
-		p.exchange,
-		"topic",
-		true,
-		false,
-		false,
-		false,
-		nil)
-}
+	log.Infof("Declaring %s exchange...", l.amqp.exchange)
+	err = l.amqp.ExchangeDeclare()
+	CheckFatalError(err)
 
-func (p *Londo) QueueDeclare(name string) (amqp.Queue, error) {
-	ch, err := p.conn.Channel()
-	if err != nil {
-		return amqp.Queue{}, err
-	}
-	defer ch.Close()
-
-	return ch.QueueDeclare(name, true, false, false, false, nil)
-}
-
-func (p *Londo) QueueBind(name string, key string) error {
-	ch, err := p.conn.Channel()
-	if err != nil {
-		return err
+	switch t {
+	case DbService:
+		err = l.dbService()
+		CheckFatalError(err)
+	case RenewService:
+		err = l.renewService()
+		CheckFatalError(err)
 	}
 
-	if err = ch.QueueBind(
-		name,
-		key,
-		p.exchange,
-		false,
-		nil,
-	); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p Londo) Consume(name string) {
-	ch, err := p.conn.Channel()
-	if err != nil {
-		p.logChannel.Abort <- err
-		return
-	}
-
-	deliver, err := ch.Consume(
-		name, "",
-		false,
-		false,
-		false,
-		false,
-		nil)
-	if err != nil {
-		p.logChannel.Abort <- err
-		return
-	}
-
-	for d := range deliver {
-		event, err := p.parseEventHeader(d.Headers)
-		if err != nil {
-			p.logChannel.Err <- err
-			continue
+	for {
+		select {
+		case i := <-lch.Info:
+			log.Info(i)
+		case w := <-lch.Warn:
+			log.Warn(w)
+		case e := <-lch.Err:
+			log.Error(e)
+		case a := <-lch.Abort:
+			log.Error(a)
+			break
 		}
-
-		err = p.handleEvent(event, d.Body)
-		if err != nil {
-			p.logChannel.Err <- err
-			continue
-		}
-
-		d.Ack(false)
 	}
-
-	err = ch.Cancel("", true)
-	if err != nil {
-		p.logChannel.Err <- err
-	}
-}
-
-func (p Londo) handleEvent(event string, body []byte) error {
-	switch event {
-	case RenewEventName:
-		s, err := UnmarshalMsgBody(body)
-		if err != nil {
-			return err
-		}
-
-		// In the future, this procedure may change.
-		// For now expiring certificates are being revoked before they are re-issued.
-		err = p.handleRevokeRequest(s.CertID)
-		if err != nil {
-			return err
-		}
-
-		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
-
-		err = p.Emit(DeleteSubjEvenet{}, &s)
-		if err != nil {
-			return err
-		}
-		p.logChannel.Info <- "Requested " + s.Subject + " to be deleted from database"
-
-		err = p.Emit(EnrollEvent{}, &s)
-		if err != nil {
-			return err
-		}
-		p.logChannel.Info <- "Requested new enrollment for " + s.Subject
-
-	case RevokeEventName:
-		s, err := UnmarshalMsgBody(body)
-		if err != nil {
-			return err
-		}
-
-		p.logChannel.Info <- "Revoked certificate: subject " + s.Subject + ", id: " + strconv.Itoa(s.CertID)
-
-	case EnrollEventName:
-		s, err := UnmarshalMsgBody(body)
-		if err != nil {
-			return err
-		}
-
-		key, err := GeneratePrivateKey(p.config.CertParams.BitSize)
-		if err != nil {
-			return err
-		}
-
-		csrBytes, err := GenerateCSR(key, "", p.config)
-		if err != nil {
-			return err
-		}
-
-		csr := &pem.Block{
-			Type:    "CERTIFICATE REQUEST",
-			Headers: nil,
-			Bytes:   csrBytes,
-		}
-
-		err = pem.Encode(os.Stdout, csr)
-
-		if err = pem.Encode(os.Stdout, csr); err != nil {
-			return err
-		}
-
-		//b, err := p.handEnrollRequest(&s)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//var jr EnrollResponse
-		//err = json.Unmarshal(b, &jr)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//s.CertID = jr.SslId
-		//s.OrderID = jr.RenewID
-		//
-		//err = p.Emit(CollectEvent{}, &s)
-		//if err != nil {
-		//	return err
-		//}
-
-		p.logChannel.Info <- "Enrolled new subject: " + s.Subject
-
-	case DeleteSubjEvent:
-		s, err := UnmarshalMsgBody(body)
-		if err != nil {
-			return err
-		}
-
-		if err = p.db.DeleteSubject(s.CertID); err != nil {
-			return err
-		}
-
-		p.logChannel.Info <- "Deleted subject with id " + strconv.Itoa(s.CertID)
-
-	default:
-		return errors.New("unrecognized event type")
-	}
-
-	return nil
-}
-
-func (p Londo) handEnrollRequest(s *Subject) ([]byte, error) {
-	c := NewRestClient(*p.config)
-	res, err := c.Enroll(s)
-	if err != nil {
-		return nil, err
-	}
-
-	if res.StatusCode() != http.StatusOK {
-		return nil, err
-	}
-
-	return res.Body(), nil
-}
-
-func (p Londo) handleRevokeRequest(id int) error {
-	c := NewRestClient(*p.config)
-	res, err := c.Revoke(id)
-	if err != nil {
-		return err
-	}
-
-	if res.StatusCode() != http.StatusCreated {
-		return err
-	}
-
-	return nil
-}
-
-func (p Londo) parseEventHeader(h amqp.Table) (string, error) {
-	raw, ok := h[eventHeader]
-	if !ok {
-		return "", errors.New("no " + eventHeader + " header found")
-	}
-	e, ok := raw.(string)
-	if !ok {
-		return "", errors.New("event name is not a string")
-	}
-	return e, nil
-}
-
-func (p Londo) getEventType(e Event, s *Subject) (Event, error) {
-	switch e.(type) {
-	case RenewEvent:
-		return RenewEvent{
-			Subject:  s.Subject,
-			CertID:   s.CertID,
-			AltNames: s.AltNames,
-			Targets:  s.Targets,
-		}, nil
-
-	case RevokeEvent:
-		return RevokeEvent{CertID: s.CertID}, nil
-
-	case EnrollEvent:
-		return EnrollEvent{
-			Subject:  s.Subject,
-			AltNames: s.AltNames,
-			Targets:  s.Targets,
-		}, nil
-
-	case DeleteSubjEvenet:
-		return DeleteSubjEvenet{CertID: s.CertID}, nil
-
-	case CSREvent:
-		return CSREvent{
-			Subject:    s.Subject,
-			CSR:        s.CSR,
-			PrivateKey: s.PrivateKey,
-			AltNames:   s.AltNames,
-			Targets:    s.Targets,
-		}, nil
-
-	case CompleteEnrollEvent:
-		return CompleteEnrollEvent{
-			Subject:     s.Subject,
-			CertID:      s.CertID,
-			OrderID:     s.OrderID,
-			Certificate: s.Certificate,
-		}, nil
-
-	case CollectEvent:
-		return CollectEvent{CertID: s.CertID}, nil
-
-	default:
-		return nil, errors.New("unknown event type")
-	}
-}
-
-func (p Londo) Emit(e Event, s *Subject) error {
-
-	event, err := p.getEventType(e, s)
-
-	j, err := json.Marshal(&event)
-	if err != nil {
-		return err
-	}
-
-	ch, err := p.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
-
-	msg := amqp.Publishing{
-		Headers:     amqp.Table{eventHeader: event.EventName()},
-		ContentType: "application/json",
-		Body:        j,
-	}
-
-	return ch.Publish(
-		p.exchange,
-		event.EventName(),
-		false,
-		false,
-		msg)
 }
