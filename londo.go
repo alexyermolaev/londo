@@ -7,11 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	DbService    = 1
-	RenewService = 2
-)
-
 type Londo struct {
 	Name       string
 	db         *MongoDB
@@ -54,7 +49,13 @@ func (l *Londo) RenewService() *Londo {
 }
 
 func (l *Londo) DbService() *Londo {
-	_, err := l.amqp.QueueDeclare(DeleteSubjEvent)
+	var err error
+
+	log.Info("Connecting to the database...")
+	l.db, err = NewDBConnection(l.config)
+	CheckFatalError(err)
+
+	_, err = l.amqp.QueueDeclare(DeleteSubjEvent)
 	CheckFatalError(err)
 
 	err = l.amqp.QueueBind(DeleteSubjEvent, DeleteSubjEvent)
@@ -82,9 +83,6 @@ func S(name string) *Londo {
 	CheckFatalError(err)
 
 	l.logChannel = CreateLogChannel()
-
-	log.Info("Connecting to the database...")
-	l.db, err = NewDBConnection(l.config)
 
 	log.Info("Connecting to RabbitMQ...")
 	l.amqp, err = NewMQConnection(l.config, l.db, l.logChannel)
