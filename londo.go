@@ -5,6 +5,8 @@ import (
 	"errors"
 	"github.com/streadway/amqp"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"time"
 
@@ -228,17 +230,23 @@ func S(name string) *Londo {
 }
 
 func (l *Londo) Run() {
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+
 	for {
 		select {
-		case i := <-l.LogChannel.Info:
-			log.Info(i)
-		case w := <-l.LogChannel.Warn:
-			log.Warn(w)
-		case e := <-l.LogChannel.Err:
-			log.Error(e)
-		case a := <-l.LogChannel.Abort:
-			log.Error(a)
-			break
+		case _ = <-s:
+			log.Info("Goodbye, Captain Sheridan!")
+			os.Exit(0)
+		case m := <-l.LogChannel.Info:
+			log.Info(m)
+		case m := <-l.LogChannel.Warn:
+			log.Warn(m)
+		case m := <-l.LogChannel.Err:
+			log.Error(m)
+		case m := <-l.LogChannel.Abort:
+			log.Error(m)
+			os.Exit(1)
 		}
 	}
 }
