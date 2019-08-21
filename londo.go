@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"github.com/streadway/amqp"
+	"strconv"
 	"time"
 
 	"github.com/roylee0704/gron"
@@ -38,16 +39,20 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 				l.LogChannel.Err <- err
 			}
 
-			log.Infof("%v, %v", e.Subject, e.NotAfter)
-			if err = l.AMQP.Emit(amqp.Publishing{
-				Headers:     nil,
-				ContentType: "application/json",
-				ReplyTo:     reply,
-				//Expiration:  strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-				Timestamp:   time.Time{},
-				Body:        j,
-			}, exchange, queue); err != nil {
+			if err = l.AMQP.Emit(
+				exchange,
+				queue,
+				amqp.Publishing{
+					Headers:     nil,
+					ContentType: "application/json",
+					ReplyTo:     reply,
+					Expiration:  strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+					Timestamp:   time.Time{},
+					Body:        j,
+				}); err != nil {
 				l.LogChannel.Err <- err
+			} else {
+				l.LogChannel.Info <- "published " + e.Subject
 			}
 		}
 	})
@@ -64,10 +69,11 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 		err := json.Unmarshal(d.Body, &s)
 		if err != nil {
 			err = d.Reject(false)
+			l.LogChannel.Warn <- "rejected unknown message"
 			return err
 		}
 
-		l.LogChannel.Info <- "subject " + s.Subject + " received."
+		l.LogChannel.Info <- "subject " + s.Subject + " received"
 		err = d.Ack(false)
 		return err
 	})
@@ -99,7 +105,7 @@ func (l *Londo) Declare(exchange string, queue string, kind string) *Londo {
 	CheckFatalError(err)
 
 	log.Infof("Binding to %s queue...", queue)
-	err = ch.QueueBind(queue, "", exchange, false, nil)
+	err = ch.QueueBind(queue, queue, exchange, false, nil)
 	CheckFatalError(err)
 
 	return l

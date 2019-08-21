@@ -45,7 +45,7 @@ func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*AMQP, error) {
 	return mq, err
 }
 
-func (a *AMQP) Emit(msg amqp.Publishing, exchange string, key string) error {
+func (a *AMQP) Emit(exchange string, key string, msg amqp.Publishing) error {
 	ch, err := a.connection.Channel()
 	defer ch.Close()
 	if err != nil {
