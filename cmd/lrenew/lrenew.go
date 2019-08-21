@@ -7,17 +7,17 @@ import (
 
 func main() {
 
-	reqExchange := "rpc-requests"
-	reqQueue := "rpc-events"
-
-	replExchange := "rpc-replies"
-	replQueue := "rpc-reply"
-
 	londo.S("renew").
 		NewAMQPConnection().
-		Declare(reqExchange, reqQueue, amqp.ExchangeDirect).
-		Declare(replExchange, replQueue, amqp.ExchangeDirect).
-		ConsumeRenew(reqQueue).
+		Declare(
+			londo.DbReplyExchange,
+			londo.DbReplyQueue,
+			amqp.ExchangeDirect).
+		Declare(
+			londo.RenewExchange,
+			londo.RenewQueue,
+			amqp.ExchangeDirect).
+		ConsumeRenew(londo.RenewQueue).
 		Run()
 
 }

@@ -1,18 +1,9 @@
 package londo
 
 import (
-	"github.com/streadway/amqp"
 	"strconv"
-)
 
-const (
-	RenewEventName     = "renew"
-	RevokeEventName    = "revoke"
-	EnrollEventName    = "enroll"
-	DeleteSubjEvent    = "delete"
-	CompleteEnrollName = "complete"
-	CSREventName       = "newcsr"
-	CollectEventName   = "collect"
+	"github.com/streadway/amqp"
 )
 
 type AMQP struct {

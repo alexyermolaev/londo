@@ -10,6 +10,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	RenewExchange = "renew-rpc"
+	RenewQueue    = "renew"
+
+	DbReplyExchange = "db-rpc"
+	DbReplyQueue    = "db-rpc-replies"
+)
+
 type Londo struct {
 	Name       string
 	Db         *MongoDB
