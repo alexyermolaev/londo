@@ -87,6 +87,7 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 
 		res, err := rest.Revoke(s.CertID)
 
+		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			err = d.Reject(true)
 			l.LogChannel.Err <- err
@@ -97,6 +98,34 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 			err = d.Reject(true)
 			l.LogChannel.Err <- errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 			return err
+		}
+
+		if d.ReplyTo != "" {
+			// TODO: Needs to be extract into its own method
+			e := DeleteSubjEvenet{
+				CertID: s.CertID,
+			}
+
+			// The error should never happen, or should it?
+			j, err := json.Marshal(&e)
+			if err != nil {
+				l.LogChannel.Err <- err
+				return err
+			}
+
+			if err := l.AMQP.Emit(
+				"",
+				d.ReplyTo,
+				amqp.Publishing{
+					ContentType: "application/json",
+					Type:        "delete_subj",
+					Body:        j,
+				}); err != nil {
+				l.LogChannel.Err <- err
+				return err
+			} else {
+				l.LogChannel.Info <- "requesting deletion of " + s.Subject
+			}
 		}
 
 		l.LogChannel.Info <- "subject " + s.Subject + " received"
