@@ -18,6 +18,8 @@ const (
 
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
+
+	DeleteCommand = "delete_subj"
 )
 
 type Londo struct {
@@ -81,7 +83,6 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 		err := json.Unmarshal(d.Body, &s)
 		if err != nil {
 			err = d.Reject(false)
-			l.LogChannel.Warn <- "rejected unknown message"
 			return err
 		}
 
@@ -90,15 +91,15 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			err = d.Reject(true)
-			l.LogChannel.Err <- err
 			return err
 		}
 
 		if res.StatusCode() != http.StatusNoContent {
 			err = d.Reject(true)
-			l.LogChannel.Err <- errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
-			return err
+			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 		}
+
+		// TODO: Generate an event to re-register subject
 
 		if d.ReplyTo != "" {
 			// TODO: Needs to be extract into its own method
@@ -109,7 +110,6 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 			// The error should never happen, or should it?
 			j, err := json.Marshal(&e)
 			if err != nil {
-				l.LogChannel.Err <- err
 				return err
 			}
 
@@ -118,10 +118,9 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 				d.ReplyTo,
 				amqp.Publishing{
 					ContentType: "application/json",
-					Type:        "delete_subj",
+					Type:        DeleteCommand,
 					Body:        j,
 				}); err != nil {
-				l.LogChannel.Err <- err
 				return err
 			} else {
 				l.LogChannel.Info <- "requesting deletion of " + s.Subject
@@ -132,6 +131,37 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 		err = d.Ack(false)
 		return err
 	})
+
+	return l
+}
+
+func (l *Londo) ConsumeDbRPC(queue string) *Londo {
+	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+
+		switch d.Type {
+		case DeleteCommand:
+
+			var e DeleteSubjEvenet
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				d.Reject(false)
+				return err
+			}
+
+			if err := l.Db.DeleteSubject(e.CertID); err != nil {
+				d.Reject(false)
+				return err
+			}
+
+			l.LogChannel.Info <- "certificate " + strconv.Itoa(e.CertID) + " has been deleted."
+
+		default:
+			l.LogChannel.Warn <- "unknown command received"
+		}
+
+		d.Ack(false)
+		return nil
+	})
+
 	return l
 }
 

@@ -18,6 +18,7 @@ func main() {
 			londo.RenewExchange,
 			londo.RenewQueue,
 			amqp.ExchangeDirect).
+		ConsumeDbRPC(londo.DbReplyQueue).
 		PublishExpiringCerts(
 			londo.RenewExchange,
 			londo.RenewQueue,
