@@ -7,6 +7,7 @@ import (
 
 func main() {
 	londo.S("enroll").
+		NewAMQPConnection().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
@@ -15,5 +16,6 @@ func main() {
 			londo.EnrollExchange,
 			londo.EnrollQueue,
 			amqp.ExchangeDirect, nil).
+		ConsumeEnroll(londo.EnrollQueue).
 		Run()
 }

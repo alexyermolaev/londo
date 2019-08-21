@@ -58,11 +58,25 @@ func GenerateCSR(key crypto.PrivateKey, cn string, c *Config) ([]byte, error) {
 	return x509.CreateCertificateRequest(rand.Reader, &tpl, key)
 }
 
-func Encode(b []byte, t string) (string, error) {
+func EncodeCSR(b []byte) (string, error) {
 	block := &pem.Block{
-		Type:  t,
+		Type:  CsrType,
 		Bytes: b,
 	}
+
+	return encodeBuffer(block)
+}
+
+func EncodePKey(key *rsa.PrivateKey) (string, error) {
+	block := &pem.Block{
+		Type:  PKeyType,
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	}
+
+	return encodeBuffer(block)
+}
+
+func encodeBuffer(block *pem.Block) (string, error) {
 
 	buf := new(bytes.Buffer)
 

@@ -24,7 +24,7 @@ const (
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
 
-	DeleteCommand = "delete_subj"
+	DbDeleteCommand = "delete_subj"
 
 	ContentType = "application/json"
 )
@@ -56,21 +56,22 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 			j, err := json.Marshal(&re)
 			if err != nil {
 				l.LogChannel.Err <- err
-			}
-
-			if err = l.AMQP.Emit(
-				exchange,
-				queue,
-				amqp.Publishing{
-					ContentType:   ContentType,
-					ReplyTo:       reply,
-					CorrelationId: e.ID.Hex(),
-					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-					Body:          j,
-				}); err != nil {
-				l.LogChannel.Err <- err
 			} else {
-				l.LogChannel.Info <- "published " + e.Subject
+				// TODO: fix nested ifs
+				if err = l.AMQP.Emit(
+					exchange,
+					queue,
+					amqp.Publishing{
+						ContentType:   ContentType,
+						ReplyTo:       reply,
+						CorrelationId: e.ID.Hex(),
+						Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+						Body:          j,
+					}); err != nil {
+					l.LogChannel.Err <- err
+				} else {
+					l.LogChannel.Info <- "published " + e.Subject
+				}
 			}
 		}
 	})
@@ -89,18 +90,24 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 	}
 
 	j, err := json.Marshal(&e)
-
-	if err := l.AMQP.Emit(
-		exchange,
-		queue,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Body:        j,
-		}); err != nil {
+	if err != nil {
 		l.LogChannel.Err <- err
 	} else {
-		l.LogChannel.Info <- "enrolling new subject: " + e.Subject
+		// TODO: fix nested ifs
+		if err := l.AMQP.Emit(
+			exchange,
+			queue,
+			amqp.Publishing{
+				ContentType: ContentType,
+				Body:        j,
+			}); err != nil {
+			l.LogChannel.Err <- err
+		} else {
+			l.LogChannel.Info <- "enrolling new subject: " + e.Subject
+		}
 	}
+
+	return l
 }
 
 func (l *Londo) ConsumeEnroll(queue string) *Londo {
@@ -108,30 +115,38 @@ func (l *Londo) ConsumeEnroll(queue string) *Londo {
 
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
+			err = d.Reject(false)
 			return err
 		}
 
 		key, err := GeneratePrivateKey(l.Config.CertParams.BitSize)
 		if err != nil {
+			err = d.Reject(false)
 			return err
 		}
 
-		s.PrivateKey, err = Encode(key, PKeyType)
+		s.PrivateKey, err = EncodePKey(key)
 		if err != nil {
+			err = d.Reject(false)
 			return err
 		}
 
 		csr, err := GenerateCSR(key, "", l.Config)
 		if err != nil {
+			err = d.Reject(false)
 			return err
 		}
 
-		s.CSR, err = Encode(csr, CsrType)
+		s.CSR, err = EncodeCSR(csr)
 		if err != nil {
+			err = d.Reject(false)
 			return err
 		}
 
-		// TODO: Encode request json, make request, process response, send message
+		// TODO: EncodeCSR request json, make request, process response, send message
+		l.LogChannel.Info <- s.Subject
+		l.LogChannel.Info <- s.CSR
+		l.LogChannel.Info <- s.PrivateKey
 
 		return nil
 	})
@@ -161,8 +176,6 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 		}
 
-		// TODO: Generate an event to re-register subject
-
 		if d.ReplyTo != "" {
 			// TODO: Needs to be extract into its own method
 			e := DeleteSubjEvenet{
@@ -172,6 +185,7 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 			// The error should never happen, or should it?
 			j, err := json.Marshal(&e)
 			if err != nil {
+				err = d.Reject(false)
 				return err
 			}
 
@@ -180,21 +194,21 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 				d.ReplyTo,
 				amqp.Publishing{
 					ContentType:   "application/json",
-					Type:          DeleteCommand,
+					Type:          DbDeleteCommand,
 					CorrelationId: d.CorrelationId,
 					Body:          j,
 				}); err != nil {
+				err = d.Reject(false)
 				return err
 			} else {
 				l.LogChannel.Info <- "requesting deletion of " + s.Subject
 			}
 		}
 
-		// TODO: Publish enroll new cert
+		l.PublishNewSubject(EnrollExchange, EnrollQueue, &s)
 
 		l.LogChannel.Info <- "subject " + s.Subject + " received"
-		err = d.Ack(false)
-		return err
+		return nil
 	})
 
 	return l
@@ -204,7 +218,7 @@ func (l *Londo) ConsumeDbRPC(queue string) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
 
 		switch d.Type {
-		case DeleteCommand:
+		case DbDeleteCommand:
 
 			var e DeleteSubjEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
@@ -276,16 +290,18 @@ func S(name string) *Londo {
 		Name: name,
 	}
 
-	ConfigureLogging(log.DebugLevel)
-
-	log.Infof("Starting %s service...", l.Name)
-
-	log.Info("Reading configuration...")
-
 	var err error
 
+	log.Info("Reading configuration...")
 	l.Config, err = ReadConfig()
 	CheckFatalError(err)
+
+	// TODO Broken
+	if l.Config.Debug == 1 {
+		ConfigureLogging(log.DebugLevel)
+	}
+
+	log.Infof("Starting %s service...", l.Name)
 
 	l.LogChannel = CreateLogChannel()
 
@@ -305,6 +321,8 @@ func (l *Londo) Run() {
 			log.Info(m)
 		case m := <-l.LogChannel.Warn:
 			log.Warn(m)
+		case m := <-l.LogChannel.Debug:
+			log.Debug(m)
 		case m := <-l.LogChannel.Err:
 			log.Error(m)
 		case m := <-l.LogChannel.Abort:
@@ -312,10 +330,12 @@ func (l *Londo) Run() {
 			l.shutdown(1)
 		}
 	}
-
 }
 
 func (l *Londo) shutdown(code int) {
+	if l.Db == nil {
+		os.Exit(code)
+	}
 	if err := l.Db.Disconnect(); err != nil {
 		log.Error(err)
 		code = 1

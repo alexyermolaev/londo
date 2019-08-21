@@ -35,4 +35,5 @@ cert_params:
   term: 365 # in days
   bit_size: 2048
   format_type: "x509CO"
-  
+
+debug: 0 # debugging only

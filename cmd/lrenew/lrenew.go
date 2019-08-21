@@ -20,6 +20,10 @@ func main() {
 			amqp.ExchangeDirect, amqp.Table{
 				"x-message-ttl": int(59 * time.Second / time.Millisecond),
 			}).
+		Declare(
+			londo.EnrollExchange,
+			londo.EnrollQueue,
+			amqp.ExchangeDirect, nil).
 		ConsumeRenew(londo.RenewQueue).
 		Run()
 

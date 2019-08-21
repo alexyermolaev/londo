@@ -16,9 +16,10 @@ func ConfigureLogging(level logrus.Level) {
 }
 
 type LogChannel struct {
-	Info chan string
-	Warn chan string
-	Err  chan error
+	Info  chan string
+	Warn  chan string
+	Debug chan string
+	Err   chan error
 	// Third trimester vacuum cleaning!
 	Abort chan error
 }

@@ -47,6 +47,7 @@ func (a *AMQP) Emit(exchange string, key string, msg amqp.Publishing) error {
 }
 
 func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
+	a.logChannel.Info <- "consuming " + queue + " queue."
 	ch, err := a.connection.Channel()
 	defer ch.Close()
 	if err != nil {
@@ -65,5 +66,6 @@ func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
 		if err != nil {
 			a.logChannel.Err <- err
 		}
+		d.Ack(false)
 	}
 }

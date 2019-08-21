@@ -40,6 +40,7 @@ type Config struct {
 	AMQP       rabbitmq   `yaml:"amqp"`
 	RestAPI    restapi    `yaml:"sectigo"`
 	CertParams certParams `yaml:"cert_params"`
+	Debug      int        `yaml:"debug"`
 }
 
 func ReadConfig() (*Config, error) {
