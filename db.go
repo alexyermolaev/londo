@@ -34,8 +34,8 @@ func NewDBConnection(c *Config) (*MongoDB, error) {
 	return m, nil
 }
 
-func (m MongoDB) Disconnect() {
-	m.client.Disconnect(m.context)
+func (m MongoDB) Disconnect() error {
+	return m.client.Disconnect(m.context)
 }
 
 func (m MongoDB) FindAllSubjects() ([]*Subject, error) {

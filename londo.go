@@ -239,7 +239,7 @@ func (l *Londo) Run() {
 		select {
 		case _ = <-s:
 			log.Info("Goodbye, Captain Sheridan!")
-			os.Exit(0)
+			l.shutdown(0)
 		case m := <-l.LogChannel.Info:
 			log.Info(m)
 		case m := <-l.LogChannel.Warn:
@@ -247,8 +247,16 @@ func (l *Londo) Run() {
 		case m := <-l.LogChannel.Err:
 			log.Error(m)
 		case m := <-l.LogChannel.Abort:
-			log.Error(m)
-			os.Exit(1)
+			l.shutdown(1)
 		}
 	}
+
+}
+
+func (l *Londo) shutdown(code int) {
+	if err := l.Db.Disconnect(); err != nil {
+		log.Error(err)
+		code = 1
+	}
+	os.Exit(code)
 }
