@@ -1,9 +1,5 @@
 package londo
 
-type Event interface {
-	EventName() string
-}
-
 type RenewEvent struct {
 	Subject  string
 	CertID   int
@@ -11,16 +7,8 @@ type RenewEvent struct {
 	Targets  []string
 }
 
-func (e RenewEvent) EventName() string {
-	return RenewEventName
-}
-
 type RevokeEvent struct {
 	CertID int
-}
-
-func (e RevokeEvent) EventName() string {
-	return RevokeEventName
 }
 
 type EnrollEvent struct {
@@ -29,16 +17,8 @@ type EnrollEvent struct {
 	Targets  []string
 }
 
-func (e EnrollEvent) EventName() string {
-	return EnrollEventName
-}
-
 type DeleteSubjEvenet struct {
 	CertID int
-}
-
-func (e DeleteSubjEvenet) EventName() string {
-	return DeleteSubjEvent
 }
 
 type CompleteEnrollEvent struct {
@@ -46,10 +26,6 @@ type CompleteEnrollEvent struct {
 	CertID      int
 	OrderID     string
 	Certificate string
-}
-
-func (e CompleteEnrollEvent) EventName() string {
-	return CompleteEnrollName
 }
 
 type CSREvent struct {
@@ -60,14 +36,6 @@ type CSREvent struct {
 	Targets    []string
 }
 
-func (e CSREvent) EventName() string {
-	return CSREventName
-}
-
 type CollectEvent struct {
 	CertID int
-}
-
-func (e CollectEvent) EventName() string {
-	return CollectEventName
 }

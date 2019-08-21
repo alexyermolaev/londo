@@ -2,7 +2,9 @@ package londo
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/streadway/amqp"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -29,7 +31,7 @@ type Londo struct {
 func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string) *Londo {
 	cron := gron.New()
 
-	cron.AddFunc(gron.Every(1*time.Second), func() {
+	cron.AddFunc(gron.Every(1*time.Minute), func() {
 		exp, err := l.Db.FindExpiringSubjects(720)
 		CheckFatalError(err)
 
@@ -73,11 +75,27 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 func (l *Londo) ConsumeRenew(queue string) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
 
+		rest := NewRestClient(l.Config)
+
 		var s Subject
 		err := json.Unmarshal(d.Body, &s)
 		if err != nil {
 			err = d.Reject(false)
 			l.LogChannel.Warn <- "rejected unknown message"
+			return err
+		}
+
+		res, err := rest.Revoke(s.CertID)
+
+		if err != nil {
+			err = d.Reject(true)
+			l.LogChannel.Err <- err
+			return err
+		}
+
+		if res.StatusCode() != http.StatusNoContent {
+			err = d.Reject(true)
+			l.LogChannel.Err <- errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 			return err
 		}
 

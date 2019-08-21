@@ -25,10 +25,10 @@ type RestAPI struct {
 	config *Config
 }
 
-func NewRestClient(c Config) *RestAPI {
+func NewRestClient(c *Config) *RestAPI {
 	return &RestAPI{
 		Client: resty.New(),
-		config: &c,
+		config: c,
 	}
 }
 
