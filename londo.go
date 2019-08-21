@@ -3,7 +3,6 @@ package londo
 import (
 	"encoding/json"
 	"errors"
-	"github.com/streadway/amqp"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/roylee0704/gron"
 	log "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 const (
@@ -57,12 +57,13 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 				exchange,
 				queue,
 				amqp.Publishing{
-					Headers:     nil,
-					ContentType: "application/json",
-					ReplyTo:     reply,
-					Expiration:  strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-					Timestamp:   time.Time{},
-					Body:        j,
+					Headers:       nil,
+					ContentType:   "application/json",
+					ReplyTo:       reply,
+					CorrelationId: e.ID.Hex(),
+					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+					Timestamp:     time.Time{},
+					Body:          j,
 				}); err != nil {
 				l.LogChannel.Err <- err
 			} else {
@@ -119,9 +120,10 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 				"",
 				d.ReplyTo,
 				amqp.Publishing{
-					ContentType: "application/json",
-					Type:        DeleteCommand,
-					Body:        j,
+					ContentType:   "application/json",
+					Type:          DeleteCommand,
+					CorrelationId: d.CorrelationId,
+					Body:          j,
 				}); err != nil {
 				return err
 			} else {
@@ -149,7 +151,7 @@ func (l *Londo) ConsumeDbRPC(queue string) *Londo {
 				return err
 			}
 
-			if err := l.Db.DeleteSubject(e.CertID); err != nil {
+			if err := l.Db.DeleteSubject(d.CorrelationId, e.CertID); err != nil {
 				d.Reject(false)
 				return err
 			}
@@ -177,7 +179,7 @@ func (l *Londo) NewAMQPConnection() *Londo {
 	return l
 }
 
-func (l *Londo) Declare(exchange string, queue string, kind string) *Londo {
+func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Table) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
 	CheckFatalError(err)
@@ -188,7 +190,7 @@ func (l *Londo) Declare(exchange string, queue string, kind string) *Londo {
 
 	log.Infof("Declaring %s queue...", queue)
 	_, err = ch.QueueDeclare(
-		queue, false, false, false, false, nil)
+		queue, false, false, false, false, args)
 	CheckFatalError(err)
 
 	log.Infof("Binding to %s queue...", queue)

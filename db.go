@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -81,10 +82,15 @@ func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 	return res, nil
 }
 
-func (m MongoDB) DeleteSubject(certid int) error {
+func (m MongoDB) DeleteSubject(hexId string, certid int) error {
 	col := m.client.Database(m.Name).Collection("subjects")
 
-	filter := bson.M{"cert_id": certid}
+	id, err := primitive.ObjectIDFromHex(hexId)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": id, "cert_id": certid}
 
 	dres, err := col.DeleteOne(m.context, filter)
 	if err != nil {
@@ -98,16 +104,17 @@ func (m MongoDB) DeleteSubject(certid int) error {
 }
 
 type Subject struct {
-	Subject     string    `bson:"subject"`
-	CSR         string    `bson:"csr"`
-	PrivateKey  string    `bson:"private_key"`
-	Certificate string    `bson:"certificate"`
-	CertID      int       `bson:"cert_id"`
-	OrderID     string    `bson:"order_id"`
-	NotAfter    time.Time `bson:"not_after"`
-	CreatedAt   time.Time `bson:"created_at"`
-	UpdatedAt   time.Time `bson:"updated_at"`
-	Retired     bool      `bson:"retired"`
-	Targets     []string  `bson:"targets"`
-	AltNames    []string  `bson:"alt_names"`
+	ID          primitive.ObjectID `bson:"_id"`
+	Subject     string             `bson:"subject"`
+	CSR         string             `bson:"csr"`
+	PrivateKey  string             `bson:"private_key"`
+	Certificate string             `bson:"certificate"`
+	CertID      int                `bson:"cert_id"`
+	OrderID     string             `bson:"order_id"`
+	NotAfter    time.Time          `bson:"not_after"`
+	CreatedAt   time.Time          `bson:"created_at"`
+	UpdatedAt   time.Time          `bson:"updated_at"`
+	Retired     bool               `bson:"retired"`
+	Targets     []string           `bson:"targets"`
+	AltNames    []string           `bson:"alt_names"`
 }
