@@ -1,6 +1,7 @@
 package londo
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -9,6 +10,11 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+)
+
+const (
+	CsrType  = "CERTIFICATE REQUEST"
+	PKeyType = "PRIVATE KEY"
 )
 
 func ParsePublicCertificate(s Subject) (*x509.Certificate, error) {
@@ -50,4 +56,18 @@ func GenerateCSR(key crypto.PrivateKey, cn string, c *Config) ([]byte, error) {
 	}
 
 	return x509.CreateCertificateRequest(rand.Reader, &tpl, key)
+}
+
+func Encode(b []byte, t string) (string, error) {
+	block := &pem.Block{
+		Type:  t,
+		Bytes: b,
+	}
+
+	buf := new(bytes.Buffer)
+
+	if err := pem.Encode(buf, block); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }

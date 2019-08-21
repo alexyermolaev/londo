@@ -66,7 +66,6 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 					ReplyTo:       reply,
 					CorrelationId: e.ID.Hex(),
 					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-					Timestamp:     time.Time{},
 					Body:          j,
 				}); err != nil {
 				l.LogChannel.Err <- err
@@ -104,10 +103,37 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 	}
 }
 
-// TODO: Finish consumer
 func (l *Londo) ConsumeEnroll(queue string) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
-		return errors.New("not implemented")
+
+		s, err := UnmarshallMsg(&d)
+		if err != nil {
+			return err
+		}
+
+		key, err := GeneratePrivateKey(l.Config.CertParams.BitSize)
+		if err != nil {
+			return err
+		}
+
+		s.PrivateKey, err = Encode(key, PKeyType)
+		if err != nil {
+			return err
+		}
+
+		csr, err := GenerateCSR(key, "", l.Config)
+		if err != nil {
+			return err
+		}
+
+		s.CSR, err = Encode(csr, CsrType)
+		if err != nil {
+			return err
+		}
+
+		// TODO: Encode request json, make request, process response, send message
+
+		return nil
 	})
 
 	return l
@@ -116,15 +142,12 @@ func (l *Londo) ConsumeEnroll(queue string) *Londo {
 func (l *Londo) ConsumeRenew(queue string) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
 
-		rest := NewRestClient(l.Config)
-
-		var s Subject
-		err := json.Unmarshal(d.Body, &s)
+		s, err := UnmarshallMsg(&d)
 		if err != nil {
-			err = d.Reject(false)
 			return err
 		}
 
+		rest := NewRestClient(l.Config)
 		res, err := rest.Revoke(s.CertID)
 
 		// TODO: Response result processing needs to be elsewhere
