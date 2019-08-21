@@ -3,7 +3,6 @@ package londo
 import (
 	"encoding/json"
 	"github.com/streadway/amqp"
-	"strconv"
 	"time"
 
 	"github.com/roylee0704/gron"
@@ -44,7 +43,7 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 				Headers:     nil,
 				ContentType: "application/json",
 				ReplyTo:     reply,
-				Expiration:  strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+				//Expiration:  strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
 				Timestamp:   time.Time{},
 				Body:        j,
 			}, exchange, queue); err != nil {
@@ -55,6 +54,23 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 
 	cron.Start()
 
+	return l
+}
+
+func (l *Londo) ConsumeRenew(queue string) *Londo {
+	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+
+		var s Subject
+		err := json.Unmarshal(d.Body, &s)
+		if err != nil {
+			err = d.Reject(false)
+			return err
+		}
+
+		l.LogChannel.Info <- "subject " + s.Subject + " received."
+		err = d.Ack(false)
+		return err
+	})
 	return l
 }
 

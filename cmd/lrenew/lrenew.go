@@ -1,13 +1,23 @@
 package main
 
-import "github.com/alexyermolaev/londo"
+import (
+	"github.com/alexyermolaev/londo"
+	"github.com/streadway/amqp"
+)
 
 func main() {
 
+	reqExchange := "rpc-requests"
+	reqQueue := "rpc-events"
+
+	replExchange := "rpc-replies"
+	replQueue := "rpc-reply"
+
 	londo.S("renew").
-		RabbitMQService().
-		EventService(londo.RenewEventName).
+		NewAMQPConnection().
+		Declare(reqExchange, reqQueue, amqp.ExchangeDirect).
+		Declare(replExchange, replQueue, amqp.ExchangeDirect).
+		ConsumeRenew(reqQueue).
 		Run()
-	//log.Info("Shutting down RabbitMQ connection..")
-	//mq.Shutdown()
+
 }

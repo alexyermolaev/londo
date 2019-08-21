@@ -55,19 +55,24 @@ func (a *AMQP) Emit(msg amqp.Publishing, exchange string, key string) error {
 	return ch.Publish(exchange, key, false, false, msg)
 }
 
-func (a *AMQP) Consume(event Event, queue string) error {
+func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
 	ch, err := a.connection.Channel()
 	defer ch.Close()
 	if err != nil {
-		return err
+		a.logChannel.Err <- err
+		return
 	}
 
 	delivery, err := ch.Consume(
 		queue, "", false, true, false, false, nil)
 	if err != nil {
-		return err
+		a.logChannel.Err <- err
 	}
 
 	for d := range delivery {
+		err := f(d)
+		if err != nil {
+			a.logChannel.Err <- err
+		}
 	}
 }
