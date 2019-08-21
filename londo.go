@@ -15,6 +15,9 @@ import (
 )
 
 const (
+	EnrollExchange = "enroll-rpc"
+	EnrollQueue    = "enroll"
+
 	RenewExchange = "renew-rpc"
 	RenewQueue    = "renew"
 
@@ -22,6 +25,8 @@ const (
 	DbReplyQueue    = "db-rpc-replies"
 
 	DeleteCommand = "delete_subj"
+
+	ContentType = "application/json"
 )
 
 type Londo struct {
@@ -57,8 +62,7 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 				exchange,
 				queue,
 				amqp.Publishing{
-					Headers:       nil,
-					ContentType:   "application/json",
+					ContentType:   ContentType,
 					ReplyTo:       reply,
 					CorrelationId: e.ID.Hex(),
 					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
@@ -73,6 +77,38 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 	})
 
 	cron.Start()
+
+	return l
+}
+
+func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Londo {
+
+	e := EnrollEvent{
+		Subject:  s.Subject,
+		AltNames: s.AltNames,
+		Targets:  s.Targets,
+	}
+
+	j, err := json.Marshal(&e)
+
+	if err := l.AMQP.Emit(
+		exchange,
+		queue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Body:        j,
+		}); err != nil {
+		l.LogChannel.Err <- err
+	} else {
+		l.LogChannel.Info <- "enrolling new subject: " + e.Subject
+	}
+}
+
+// TODO: Finish consumer
+func (l *Londo) ConsumeEnroll(queue string) *Londo {
+	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+		return errors.New("not implemented")
+	})
 
 	return l
 }
@@ -130,6 +166,8 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 				l.LogChannel.Info <- "requesting deletion of " + s.Subject
 			}
 		}
+
+		// TODO: Publish enroll new cert
 
 		l.LogChannel.Info <- "subject " + s.Subject + " received"
 		err = d.Ack(false)
@@ -247,6 +285,7 @@ func (l *Londo) Run() {
 		case m := <-l.LogChannel.Err:
 			log.Error(m)
 		case m := <-l.LogChannel.Abort:
+			log.Error(m)
 			l.shutdown(1)
 		}
 	}
