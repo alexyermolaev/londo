@@ -43,10 +43,14 @@ func (r RestAPI) request() *resty.Request {
 func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 	var alts string
 
+	certType := r.config.CertParams.CertType
+
 	if s.AltNames != nil {
 		for _, a := range s.AltNames {
 			alts = alts + "," + a
 		}
+
+		certType = r.config.CertParams.MultiDomainCertType
 	}
 
 	return r.request().
@@ -54,7 +58,7 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 			orgId:             1,
 			csr:               s.CSR,
 			subjAltNames:      alts,
-			certType:          1729,
+			certType:          certType,
 			numberServers:     0,
 			serverType:        -1,
 			term:              r.config.CertParams.Term,

@@ -8,11 +8,15 @@ import (
 )
 
 type certParams struct {
-	Country, Province, Locality, StreetAddress, PostalCode, Organization string
-	OrgUnit                                                              string `yaml:"organizational_unit"`
-	Term                                                                 int
-	BitSize                                                              int `yaml:"bit_size"`
-	FormatType                                                           string
+	Country, Province, Locality, Organization string
+	StreetAddress                             string `yaml:"street_address"`
+	PostalCode                                string `yaml:"postal_code"`
+	OrgUnit                                   string `yaml:"organizational_unit"`
+	Term                                      int
+	BitSize                                   int    `yaml:"bit_size"`
+	FormatType                                string `yaml:"format_type"`
+	CertType                                  int    `yaml:"cert_type"`
+	MultiDomainCertType                       int    `yaml:"multi_domain_cert_type"`
 }
 
 type endpoints struct {
