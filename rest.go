@@ -1,6 +1,7 @@
 package londo
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/go-resty/resty/v2"
@@ -10,7 +11,7 @@ const (
 	contentType = "application/json"
 )
 
-type enrollBody struct {
+type enrollReqBody struct {
 	orgId, numberServers, certType, serverType, term int
 	csr, subjAltNames, comments, externalRequester   string
 }
@@ -53,18 +54,22 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 		certType = r.config.CertParams.MultiDomainCertType
 	}
 
+	body := enrollReqBody{
+		orgId:             1,
+		csr:               s.CSR,
+		subjAltNames:      alts,
+		certType:          certType,
+		numberServers:     0,
+		serverType:        -1,
+		term:              r.config.CertParams.Term,
+		comments:          "automated request by londo",
+		externalRequester: "",
+	}
+
+	j, _ := json.Marshal(&body)
+
 	return r.request().
-		SetBody(enrollBody{
-			orgId:             1,
-			csr:               s.CSR,
-			subjAltNames:      alts,
-			certType:          certType,
-			numberServers:     0,
-			serverType:        -1,
-			term:              r.config.CertParams.Term,
-			comments:          "automated request by londo",
-			externalRequester: "",
-		}).
+		SetBody(j).
 		Post(r.config.RestAPI.Url +
 			r.config.RestAPI.Endpoints.Enroll)
 }
