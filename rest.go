@@ -65,9 +65,16 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 			r.config.RestAPI.Endpoints.Enroll)
 }
 
-func (r RestAPI) Revoke(certid int) (*resty.Response, error) {
+func (r RestAPI) Revoke(certId int) (*resty.Response, error) {
 	return r.request().
 		Post(r.config.RestAPI.Url +
 			r.config.RestAPI.Endpoints.Revoke +
-			"/" + strconv.Itoa(certid))
+			"/" + strconv.Itoa(certId))
+}
+
+func (r RestAPI) Collect(certId int) (*resty.Response, error) {
+	return r.request().
+		Get(r.config.RestAPI.Url +
+			r.config.RestAPI.Endpoints.Collect +
+			"/" + strconv.Itoa(certId) + "/" + r.config.CertParams.FormatType)
 }

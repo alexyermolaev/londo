@@ -110,6 +110,20 @@ func (m MongoDB) DeleteSubject(hexId string, certid int) error {
 	return err
 }
 
+func (m MongoDB) UpdateSubjCert(certId int, cert string) error {
+	col := m.getSubjCollection()
+
+	filter := bson.M{"CertID": certId}
+	update := bson.M{"Certificate": cert}
+
+	_, err := col.UpdateOne(m.context, filter, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m MongoDB) getSubjCollection() *mongo.Collection {
 	return m.client.Database(m.Name).Collection("subjects")
 }

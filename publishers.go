@@ -106,7 +106,7 @@ func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 
 	switch cmd {
-	case DbAddSubjcommand:
+	case DbAddSubjCommand:
 
 		e := NewSubjectEvenet{
 			Subject:    s.Subject,
@@ -130,7 +130,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 			DbReplyQueue,
 			amqp.Publishing{
 				ContentType: ContentType,
-				Type:        DbAddSubjcommand,
+				Type:        DbAddSubjCommand,
 				Body:        j,
 			}); err != nil {
 			l.Log.Err <- err
@@ -138,6 +138,33 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 		}
 
 		l.Log.Info <- "letting db know that " + s.Subject + " needs to be created."
+
+	case DbUpdateSubjCommand:
+		// TODO
+		e := CompleteEnrollEvent{
+			CertID:      s.CertID,
+			Certificate: s.Certificate,
+		}
+
+		j, err := json.Marshal(&e)
+		if err != nil {
+			l.Log.Err <- err
+			return l
+		}
+
+		if err := l.AMQP.Emit(
+			DbReplyExchange,
+			DbReplyQueue,
+			amqp.Publishing{
+				ContentType: ContentType,
+				Type:        DbUpdateSubjCommand,
+				Body:        j,
+			}); err != nil {
+			l.Log.Err <- err
+			return l
+		}
+
+		l.Log.Info <- "letting db know that " + strconv.Itoa(s.CertID) + " needs to be updated with a certificate."
 
 	default:
 		l.Log.Err <- errors.New("unknown db command: " + cmd)

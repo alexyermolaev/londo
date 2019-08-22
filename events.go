@@ -22,9 +22,7 @@ type DeleteSubjEvenet struct {
 }
 
 type CompleteEnrollEvent struct {
-	Subject     string
 	CertID      int
-	OrderID     string
 	Certificate string
 }
 

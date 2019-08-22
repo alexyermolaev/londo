@@ -23,7 +23,8 @@ const (
 
 	// Db Commands
 	DbDeleteSubjCommand = "delete_subj"
-	DbAddSubjcommand    = "add_subj"
+	DbAddSubjCommand    = "add_subj"
+	DbUpdateSubjCommand = "update_subj"
 
 	ContentType = "application/json"
 )
