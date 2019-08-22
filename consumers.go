@@ -13,6 +13,10 @@ import (
 func (l *Londo) ConsumeEnroll() *Londo {
 	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
 
+		// A workaround for now; we don't need to process as fast as messages are being received.
+		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
+		time.Sleep(1 * time.Minute)
+
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
@@ -87,6 +91,9 @@ approach.
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
 
+		// Same as another consumer
+		time.Sleep(1 * time.Minute)
+
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
 			return err
@@ -145,6 +152,8 @@ func (l *Londo) ConsumeRenew() *Londo {
 
 func (l *Londo) ConsumeCollect() *Londo {
 	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
+
+		time.Sleep(1 * time.Minute)
 
 		// TODO: fix code duplication
 		s, err := UnmarshallMsg(&d)
