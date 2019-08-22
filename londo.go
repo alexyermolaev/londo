@@ -21,7 +21,9 @@ const (
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
 
-	DbDeleteCommand = "delete_subj"
+	// Db Commands
+	DbDeleteSubjCommand = "delete_subj"
+	DbAddSubjcommand    = "add_subj"
 
 	ContentType = "application/json"
 )

@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -106,6 +107,50 @@ func (l *Londo) PublishCollect(exchange string, queue string, s *Subject) *Londo
 		return l
 	}
 	l.LogChannel.Info <- s.Subject + " has been queued to be collected"
+
+	return l
+}
+
+func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
+
+	switch cmd {
+	case DbAddSubjcommand:
+
+		e := CSREvent{
+			Subject:    s.Subject,
+			CSR:        s.CSR,
+			PrivateKey: s.PrivateKey,
+			CertID:     s.CertID,
+			OrderID:    s.OrderID,
+			AltNames:   s.AltNames,
+			Targets:    s.Targets,
+		}
+
+		// TODO: need to do something about the rest.
+		j, err := json.Marshal(&e)
+		if err != nil {
+			l.LogChannel.Err <- err
+			return l
+		}
+
+		if err := l.AMQP.Emit(
+			DbReplyExchange,
+			DbReplyQueue,
+			amqp.Publishing{
+				ContentType: ContentType,
+				Type:        DbAddSubjcommand,
+				Body:        j,
+			}); err != nil {
+			l.LogChannel.Err <- err
+			return l
+		}
+
+		l.LogChannel.Info <- "letting db know that " + s.Subject + " needs to be created."
+
+	default:
+		l.LogChannel.Err <- errors.New("unknown db command: " + cmd)
+		return l
+	}
 
 	return l
 }

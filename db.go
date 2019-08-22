@@ -82,8 +82,15 @@ func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 	return res, nil
 }
 
+func (m MongoDB) InsertSubject(s *Subject) error {
+	col := m.getSubjCollection()
+
+	_, err := col.InsertOne(m.context, s)
+	return err
+}
+
 func (m MongoDB) DeleteSubject(hexId string, certid int) error {
-	col := m.client.Database(m.Name).Collection("subjects")
+	col := m.getSubjCollection()
 
 	id, err := primitive.ObjectIDFromHex(hexId)
 	if err != nil {
@@ -103,6 +110,10 @@ func (m MongoDB) DeleteSubject(hexId string, certid int) error {
 	return err
 }
 
+func (m MongoDB) getSubjCollection() *mongo.Collection {
+	return m.client.Database(m.Name).Collection("subjects")
+}
+
 type Subject struct {
 	ID          primitive.ObjectID `bson:"_id"`
 	Subject     string             `bson:"subject"`
@@ -114,7 +125,7 @@ type Subject struct {
 	NotAfter    time.Time          `bson:"not_after"`
 	CreatedAt   time.Time          `bson:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at"`
-	Retired     bool               `bson:"retired"`
-	Targets     []string           `bson:"targets"`
-	AltNames    []string           `bson:"alt_names"`
+	//Retired     bool               `bson:"retired"`
+	Targets  []string `bson:"targets"`
+	AltNames []string `bson:"alt_names"`
 }

@@ -32,6 +32,8 @@ type CSREvent struct {
 	Subject    string
 	CSR        string
 	PrivateKey string
+	CertID     int
+	OrderID    string
 	AltNames   []string
 	Targets    []string
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -58,8 +59,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		}
 
 		l.PublishCollect(CollectExchange, CollectQueue, &s)
-
-		// TODO: let db know new subject is on its way
+		l.PublishDbCommand(DbAddSubjcommand, &s)
 
 		return nil
 	})
@@ -111,7 +111,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 				d.ReplyTo,
 				amqp.Publishing{
 					ContentType:   "application/json",
-					Type:          DbDeleteCommand,
+					Type:          DbDeleteSubjCommand,
 					CorrelationId: d.CorrelationId,
 					Body:          j,
 				}); err != nil {
@@ -141,7 +141,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) error {
 
 		switch d.Type {
-		case DbDeleteCommand:
+		case DbDeleteSubjCommand:
 
 			var e DeleteSubjEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
@@ -155,6 +155,29 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			}
 
 			l.LogChannel.Info <- "certificate " + strconv.Itoa(e.CertID) + " has been deleted."
+
+		case DbAddSubjcommand:
+
+			// TODO: Get rid of duplication
+			var e CSREvent
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				d.Reject(false)
+				return err
+			}
+
+			if err := l.Db.InsertSubject(&Subject{
+				Subject:    e.Subject,
+				CSR:        e.CSR,
+				PrivateKey: e.PrivateKey,
+				CertID:     e.CertID,
+				OrderID:    e.OrderID,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+				Targets:    e.Targets,
+				AltNames:   e.AltNames,
+			}); err != nil {
+				return err
+			}
 
 		default:
 			l.LogChannel.Warn <- "unknown command received"
