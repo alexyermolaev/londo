@@ -7,16 +7,23 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// TODO: need a way to validate config file
+
 type certParams struct {
-	Country, Province, Locality, Organization string
-	StreetAddress                             string `yaml:"street_address"`
-	PostalCode                                string `yaml:"postal_code"`
-	OrgUnit                                   string `yaml:"organizational_unit"`
-	Term                                      int
-	BitSize                                   int    `yaml:"bit_size"`
-	FormatType                                string `yaml:"format_type"`
-	CertType                                  int    `yaml:"cert_type"`
-	MultiDomainCertType                       int    `yaml:"multi_domain_cert_type"`
+	Country             string `yaml:"country"`
+	Province            string `yaml:"province"`
+	Locality            string `yaml:"locality"`
+	Organization        string `yaml:"organization"`
+	StreetAddress       string `yaml:"street_address"`
+	PostalCode          string `yaml:"postal_code"`
+	OrgUnit             string `yaml:"organizational_unit"`
+	OrgId               int    `yaml:"org_id"`
+	Term                int    `yaml:"term"`
+	BitSize             int    `yaml:"bit_size"`
+	FormatType          string `yaml:"format_type"`
+	CertType            int    `yaml:"cert_type"`
+	MultiDomainCertType int    `yaml:"multi_domain_cert_type"`
+	Comments            string `yaml:"comments"`
 }
 
 type endpoints struct {

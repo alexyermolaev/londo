@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"time"
@@ -46,9 +47,9 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		l.Log.Info <- s.Subject
-		l.Log.Info <- s.CSR
-		l.Log.Info <- s.PrivateKey
+		logrus.Info("requesting new certificate for " + s.Subject + " subject")
+		logrus.Debug(s.CSR)
+		logrus.Debug(s.PrivateKey)
 
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
@@ -56,16 +57,20 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
+		logrus.Debug("response: " + string(res.Body()))
+
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
 			return err
 		}
 
+		// TODO: need a better way to log remote errors
+
 		var j EnrollResponse
 
-		err = json.Unmarshal(res.Body(), j)
+		err = json.Unmarshal(res.Body(), &j)
 		if err != nil {
-			d.Reject(true)
+			d.Reject(false)
 			return err
 		}
 

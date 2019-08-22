@@ -34,7 +34,7 @@ type Londo struct {
 	Db         *MongoDB
 	AMQP       *AMQP
 	Config     *Config
-	Log        *LogChannel
+	Log        *Log
 	RestClient *RestAPI
 }
 
@@ -80,8 +80,11 @@ func (l *Londo) DbService() *Londo {
 }
 
 func S(name string) *Londo {
+	ConfigureLogging(log.DebugLevel)
+
 	l := &Londo{
 		Name: name,
+		Log:  CreateLogChannel(),
 	}
 
 	var err error
@@ -90,19 +93,17 @@ func S(name string) *Londo {
 	l.Config, err = ReadConfig()
 	CheckFatalError(err)
 
-	// TODO Broken
-	if l.Config.Debug == 1 {
-		ConfigureLogging(log.DebugLevel)
-	}
-
-	log.Infof("Starting %s service...", l.Name)
-
-	l.Log = CreateLogChannel()
+	log.Info("Starting " + l.Name + " service...")
 
 	return l
 }
 
 func (l *Londo) Run() {
+	//if l.Config.Debug == 1 {
+	//	ConfigureLogging(log.DebugLevel)
+	//	log.Info("enabled debug level")
+	//}
+
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 

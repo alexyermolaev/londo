@@ -8,7 +8,7 @@ import (
 
 type AMQP struct {
 	connection *amqp.Connection
-	logChannel *LogChannel
+	logChannel *Log
 	config     *Config
 	db         *MongoDB
 }
@@ -17,7 +17,7 @@ func (a *AMQP) Shutdown() {
 	a.connection.Close()
 }
 
-func NewMQConnection(c *Config, db *MongoDB, lch *LogChannel) (*AMQP, error) {
+func NewMQConnection(c *Config, db *MongoDB, lch *Log) (*AMQP, error) {
 	mq := &AMQP{
 		config:     c,
 		logChannel: lch,

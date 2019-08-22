@@ -15,7 +15,7 @@ func ConfigureLogging(level logrus.Level) {
 	})
 }
 
-type LogChannel struct {
+type Log struct {
 	Info  chan string
 	Warn  chan string
 	Debug chan string
@@ -24,8 +24,8 @@ type LogChannel struct {
 	Abort chan error
 }
 
-func CreateLogChannel() *LogChannel {
-	return &LogChannel{
+func CreateLogChannel() *Log {
+	return &Log{
 		Info:  make(chan string),
 		Warn:  make(chan string),
 		Err:   make(chan error),
