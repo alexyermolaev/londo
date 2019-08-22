@@ -21,7 +21,7 @@ func main() {
 			amqp.ExchangeDirect, amqp.Table{
 				"x-message-ttl": int(59 * time.Second / time.Millisecond),
 			}).
-		ConsumeDbRPC(londo.DbReplyQueue).
+		ConsumeDbRPC().
 		PublishExpiringCerts(
 			londo.RenewExchange,
 			londo.RenewQueue,

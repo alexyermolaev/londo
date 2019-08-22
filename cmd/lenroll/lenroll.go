@@ -17,6 +17,10 @@ func main() {
 			londo.EnrollExchange,
 			londo.EnrollQueue,
 			amqp.ExchangeDirect, nil).
-		ConsumeEnroll(londo.EnrollQueue).
+		Declare(
+			londo.CollectExchange,
+			londo.CollectQueue,
+			amqp.ExchangeDirect, nil).
+		ConsumeEnroll().
 		Run()
 }

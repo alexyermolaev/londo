@@ -15,6 +15,9 @@ const (
 	RenewExchange = "renew-rpc"
 	RenewQueue    = "renew"
 
+	CollectExchange = "collect-rpc"
+	CollectQueue    = "collect"
+
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
 

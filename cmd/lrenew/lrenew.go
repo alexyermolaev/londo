@@ -25,7 +25,7 @@ func main() {
 			londo.EnrollExchange,
 			londo.EnrollQueue,
 			amqp.ExchangeDirect, nil).
-		ConsumeRenew(londo.RenewQueue).
+		ConsumeRenew().
 		Run()
 
 }

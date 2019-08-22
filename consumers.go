@@ -9,8 +9,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func (l *Londo) ConsumeEnroll(queue string) *Londo {
-	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+func (l *Londo) ConsumeEnroll() *Londo {
+	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
 
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
@@ -58,8 +58,8 @@ Since automated renew process involve manual approval by a human, it is much eas
 old certificate and issue new one. While this complicates logic, currently, this is the best
 approach.
 */
-func (l *Londo) ConsumeRenew(queue string) *Londo {
-	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+func (l *Londo) ConsumeRenew() *Londo {
+	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
 
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
@@ -117,8 +117,14 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeDbRPC(queue string) *Londo {
-	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+func (l *Londo) ConsumeCollect() *Londo {
+	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
+		return errors.New("not implemented")
+	})
+}
+
+func (l *Londo) ConsumeDbRPC() *Londo {
+	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) error {
 
 		switch d.Type {
 		case DbDeleteCommand:
@@ -140,7 +146,6 @@ func (l *Londo) ConsumeDbRPC(queue string) *Londo {
 			l.LogChannel.Warn <- "unknown command received"
 		}
 
-		d.Ack(false)
 		return nil
 	})
 
