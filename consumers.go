@@ -2,7 +2,6 @@ package londo
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -57,9 +56,9 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		if res.StatusCode() != http.StatusOK {
+		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
+			return err
 		}
 
 		var j EnrollResponse
@@ -106,9 +105,9 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return err
 		}
 
-		if res.StatusCode() != http.StatusNoContent {
-			err = d.Reject(true)
-			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
+		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
+			d.Reject(true)
+			return err
 		}
 
 		if d.ReplyTo != "" {
@@ -167,9 +166,9 @@ func (l *Londo) ConsumeCollect() *Londo {
 			return err
 		}
 
-		if res.StatusCode() != http.StatusOK {
-			err = d.Reject(true)
-			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
+		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
+			d.Reject(true)
+			return err
 		}
 
 		s.Certificate = string(res.Body())
