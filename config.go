@@ -16,8 +16,7 @@ type certParams struct {
 }
 
 type endpoints struct {
-	Revoke string
-	Enroll string
+	Revoke, Enroll, Collect string
 }
 
 type restapi struct {

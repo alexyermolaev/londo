@@ -28,7 +28,7 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 
 			j, err := json.Marshal(&re)
 			if err != nil {
-				l.LogChannel.Err <- err
+				l.Log.Err <- err
 				return
 			}
 
@@ -42,10 +42,10 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
 					Body:          j,
 				}); err != nil {
-				l.LogChannel.Err <- err
+				l.Log.Err <- err
 				return
 			}
-			l.LogChannel.Info <- "published " + e.Subject
+			l.Log.Info <- "published " + e.Subject
 		}
 	})
 
@@ -64,7 +64,7 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 
 	j, err := json.Marshal(&e)
 	if err != nil {
-		l.LogChannel.Err <- err
+		l.Log.Err <- err
 		return l
 	}
 
@@ -75,38 +75,30 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 			ContentType: ContentType,
 			Body:        j,
 		}); err != nil {
-		l.LogChannel.Err <- err
+		l.Log.Err <- err
 		return l
 	}
-	l.LogChannel.Info <- "enrolling new subject: " + e.Subject
+	l.Log.Info <- "enrolling new subject: " + e.Subject
 
 	return l
 }
 
-func (l *Londo) PublishCollect(exchange string, queue string, s *Subject) *Londo {
+func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 
-	e := CollectEvent{
-		CertID: s.CertID,
-	}
-
-	j, err := json.Marshal(&e)
-	if err != nil {
-		l.LogChannel.Err <- err
-		return l
-	}
+	j, _ := json.Marshal(&event)
 
 	// TODO: remove duplication
 	if err := l.AMQP.Emit(
-		exchange,
-		queue,
+		CollectExchange,
+		CollectQueue,
 		amqp.Publishing{
 			ContentType: ContentType,
 			Body:        j,
 		}); err != nil {
-		l.LogChannel.Err <- err
+		l.Log.Err <- err
 		return l
 	}
-	l.LogChannel.Info <- s.Subject + " has been queued to be collected"
+	l.Log.Info <- strconv.Itoa(event.CertID) + " has been queued to be collected"
 
 	return l
 }
@@ -129,7 +121,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 		// TODO: need to do something about the rest.
 		j, err := json.Marshal(&e)
 		if err != nil {
-			l.LogChannel.Err <- err
+			l.Log.Err <- err
 			return l
 		}
 
@@ -141,14 +133,14 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 				Type:        DbAddSubjcommand,
 				Body:        j,
 			}); err != nil {
-			l.LogChannel.Err <- err
+			l.Log.Err <- err
 			return l
 		}
 
-		l.LogChannel.Info <- "letting db know that " + s.Subject + " needs to be created."
+		l.Log.Info <- "letting db know that " + s.Subject + " needs to be created."
 
 	default:
-		l.LogChannel.Err <- errors.New("unknown db command: " + cmd)
+		l.Log.Err <- errors.New("unknown db command: " + cmd)
 		return l
 	}
 

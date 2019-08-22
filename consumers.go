@@ -43,9 +43,9 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		l.LogChannel.Info <- s.Subject
-		l.LogChannel.Info <- s.CSR
-		l.LogChannel.Info <- s.PrivateKey
+		l.Log.Info <- s.Subject
+		l.Log.Info <- s.CSR
+		l.Log.Info <- s.PrivateKey
 
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
@@ -58,7 +58,19 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 		}
 
-		l.PublishCollect(CollectExchange, CollectQueue, &s)
+		var j EnrollResponse
+
+		err = json.Unmarshal(res.Body(), j)
+		if err != nil {
+			d.Reject(true)
+			return err
+		}
+
+		l.PublishCollect(CollectEvent{CertID: j.SslId})
+
+		s.CertID = j.SslId
+		s.OrderID = j.RenewID
+
 		l.PublishDbCommand(DbAddSubjcommand, &s)
 
 		return nil
@@ -118,13 +130,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 				err = d.Reject(false)
 				return err
 			} else {
-				l.LogChannel.Info <- "requesting deletion of " + s.Subject
+				l.Log.Info <- "requesting deletion of " + s.Subject
 			}
 		}
 
 		l.PublishNewSubject(EnrollExchange, EnrollQueue, &s)
 
-		l.LogChannel.Info <- "subject " + s.Subject + " received"
+		l.Log.Info <- "subject " + s.Subject + " received"
 		return nil
 	})
 
@@ -156,7 +168,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err
 			}
 
-			l.LogChannel.Info <- "certificate " + strconv.Itoa(e.CertID) + " has been deleted."
+			l.Log.Info <- "certificate " + strconv.Itoa(e.CertID) + " has been deleted."
 
 		case DbAddSubjcommand:
 
@@ -182,7 +194,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			}
 
 		default:
-			l.LogChannel.Warn <- "unknown command received"
+			l.Log.Warn <- "unknown command received"
 		}
 
 		return nil

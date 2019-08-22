@@ -43,9 +43,12 @@ func (r RestAPI) request() *resty.Request {
 func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 	var alts string
 
-	for _, a := range s.AltNames {
-		alts = alts + "," + a
+	if s.AltNames != nil {
+		for _, a := range s.AltNames {
+			alts = alts + "," + a
+		}
 	}
+
 	return r.request().
 		SetBody(enrollBody{
 			orgId:             1,
