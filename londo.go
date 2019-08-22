@@ -29,9 +29,10 @@ type Londo struct {
 	AMQP       *AMQP
 	Config     *Config
 	LogChannel *LogChannel
+	RestClient *RestAPI
 }
 
-func (l *Londo) NewAMQPConnection() *Londo {
+func (l *Londo) AMQPConnection() *Londo {
 	var err error
 
 	log.Info("Connecting to RabbitMQ...")
@@ -117,6 +118,11 @@ func (l *Londo) Run() {
 			l.shutdown(1)
 		}
 	}
+}
+
+func (l *Londo) RestAPIClient() *Londo {
+	l.RestClient = NewRestClient(l.Config)
+	return l
 }
 
 func (l *Londo) shutdown(code int) {

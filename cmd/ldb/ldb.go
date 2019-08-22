@@ -10,7 +10,7 @@ func main() {
 
 	londo.S("db").
 		DbService().
-		NewAMQPConnection().
+		AMQPConnection().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,

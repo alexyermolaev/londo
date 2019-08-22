@@ -7,7 +7,8 @@ import (
 
 func main() {
 	londo.S("enroll").
-		NewAMQPConnection().
+		AMQPConnection().
+		RestAPIClient().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,

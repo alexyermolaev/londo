@@ -9,7 +9,8 @@ import (
 func main() {
 
 	londo.S("renew").
-		NewAMQPConnection().
+		AMQPConnection().
+		RestAPIClient().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,

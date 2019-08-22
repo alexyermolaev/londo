@@ -53,6 +53,11 @@ func (l *Londo) ConsumeEnroll(queue string) *Londo {
 	return l
 }
 
+/*
+Since automated renew process involve manual approval by a human, it is much easier to revoke
+old certificate and issue new one. While this complicates logic, currently, this is the best
+approach.
+*/
 func (l *Londo) ConsumeRenew(queue string) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
 
@@ -61,8 +66,7 @@ func (l *Londo) ConsumeRenew(queue string) *Londo {
 			return err
 		}
 
-		rest := NewRestClient(l.Config)
-		res, err := rest.Revoke(s.CertID)
+		res, err := l.RestClient.Revoke(s.CertID)
 
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
