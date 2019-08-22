@@ -31,7 +31,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		csr, err := GenerateCSR(key, "", l.Config)
+		csr, err := GenerateCSR(key, s.Subject, l.Config)
 		if err != nil {
 			err = d.Reject(false)
 			return err
