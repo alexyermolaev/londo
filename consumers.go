@@ -106,7 +106,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 
 		if d.ReplyTo != "" {
 			// TODO: Needs to be extract into its own method
-			e := DeleteSubjEvenet{
+			e := DeleteSubjEvent{
 				CertID: s.CertID,
 			}
 
@@ -176,7 +176,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 		switch d.Type {
 		case DbDeleteSubjCommand:
-			var e DeleteSubjEvenet
+			var e DeleteSubjEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err
 			}

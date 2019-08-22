@@ -17,7 +17,7 @@ type EnrollEvent struct {
 	Targets  []string
 }
 
-type DeleteSubjEvenet struct {
+type DeleteSubjEvent struct {
 	CertID int
 }
 
