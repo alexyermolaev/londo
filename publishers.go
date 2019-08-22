@@ -105,6 +105,9 @@ func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 
 func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 
+	var logMsg string
+	var e interface{}
+
 	switch cmd {
 	case DbAddSubjCommand:
 
@@ -118,58 +121,40 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 			Targets:    s.Targets,
 		}
 
-		// TODO: need to do something about the rest.
-		j, err := json.Marshal(&e)
-		if err != nil {
-			l.Log.Err <- err
-			return l
-		}
-
-		if err := l.AMQP.Emit(
-			DbReplyExchange,
-			DbReplyQueue,
-			amqp.Publishing{
-				ContentType: ContentType,
-				Type:        DbAddSubjCommand,
-				Body:        j,
-			}); err != nil {
-			l.Log.Err <- err
-			return l
-		}
-
-		l.Log.Info <- "letting db know that " + s.Subject + " needs to be created."
+		logMsg = "letting db know that " + s.Subject + " needs to be created."
 
 	case DbUpdateSubjCommand:
-		// TODO
-		e := CompleteEnrollEvent{
+		e = CompleteEnrollEvent{
 			CertID:      s.CertID,
 			Certificate: s.Certificate,
 		}
 
-		j, err := json.Marshal(&e)
-		if err != nil {
-			l.Log.Err <- err
-			return l
-		}
-
-		if err := l.AMQP.Emit(
-			DbReplyExchange,
-			DbReplyQueue,
-			amqp.Publishing{
-				ContentType: ContentType,
-				Type:        DbUpdateSubjCommand,
-				Body:        j,
-			}); err != nil {
-			l.Log.Err <- err
-			return l
-		}
-
-		l.Log.Info <- "letting db know that " + strconv.Itoa(s.CertID) + " needs to be updated with a certificate."
+		logMsg = "letting db know that " + strconv.Itoa(s.CertID) + " needs to be updated with a certificate."
 
 	default:
 		l.Log.Err <- errors.New("unknown db command: " + cmd)
 		return l
 	}
+
+	j, err := json.Marshal(&e)
+	if err != nil {
+		l.Log.Err <- err
+		return l
+	}
+
+	if err := l.AMQP.Emit(
+		DbReplyExchange,
+		DbReplyQueue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Type:        cmd,
+			Body:        j,
+		}); err != nil {
+		l.Log.Err <- err
+		return l
+	}
+
+	l.Log.Info <- logMsg
 
 	return l
 }
