@@ -136,6 +136,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 		l.PublishNewSubject(EnrollExchange, EnrollQueue, &s)
 
 		l.Log.Info <- "subject " + s.Subject + " received"
+
 		return nil
 	})
 
@@ -165,7 +166,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		s.Certificate = string(res.Body())
 		l.PublishDbCommand(DbUpdateSubjCommand, &s)
 
-		return errors.New("not implemented")
+		return nil
 	})
 
 	return l

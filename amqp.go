@@ -65,7 +65,8 @@ func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
 		err := f(d)
 		if err != nil {
 			a.logChannel.Err <- err
+		} else {
+			d.Ack(false)
 		}
-		d.Ack(false)
 	}
 }
