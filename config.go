@@ -24,8 +24,9 @@ type endpoints struct {
 }
 
 type restApi struct {
-	Url, Username, Password, CustomerURI string
-	Endpoints                            endpoints
+	Url, Username, Password string
+	CustomerURI             string `yaml:"customer_uri"`
+	Endpoints               endpoints
 }
 
 type rabbitmq struct {

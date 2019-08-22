@@ -92,14 +92,14 @@ func (r RestAPI) Collect(certId int) (*resty.Response, error) {
 
 func (r RestAPI) VerifyStatusCode(res *resty.Response, expected int) error {
 	switch res.StatusCode() {
+	case expected:
+		return nil
 	case http.StatusUnauthorized:
 		return errors.New("unauthorized")
 	case http.StatusInternalServerError:
 		return errors.New("server error")
 	case http.StatusNotFound:
 		return errors.New("page not found, wrong endpoint")
-	case expected:
-		return nil
 	default:
 		return errors.New("unhandled http error")
 	}

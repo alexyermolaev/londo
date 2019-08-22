@@ -71,5 +71,5 @@ func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
 	}
 
 	// TODO: Need better way to handle unexpectedly closed channel
-	a.logChannel.Warn <- "consumer has exited. it probably errored out."
+	a.logChannel.Warn <- "consumer has exited, malformed json message"
 }
