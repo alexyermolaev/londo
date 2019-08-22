@@ -19,7 +19,7 @@ type endpoints struct {
 	Revoke, Enroll, Collect string
 }
 
-type restapi struct {
+type restApi struct {
 	Url, Username, Password, CustomerURI string
 	Endpoints                            endpoints
 }
@@ -37,7 +37,7 @@ type db struct {
 type Config struct {
 	DB         db         `yaml:"mongodb"`
 	AMQP       rabbitmq   `yaml:"amqp"`
-	RestAPI    restapi    `yaml:"sectigo"`
+	RestAPI    restApi    `yaml:"sectigo"`
 	CertParams certParams `yaml:"cert_params"`
 	Debug      int        `yaml:"debug"`
 }
