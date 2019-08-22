@@ -42,10 +42,22 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		// TODO: EncodeCSR request json, make request, process response, send message
 		l.LogChannel.Info <- s.Subject
 		l.LogChannel.Info <- s.CSR
 		l.LogChannel.Info <- s.PrivateKey
+
+		res, err := l.RestClient.Enroll(&s)
+		if err != nil {
+			d.Reject(true)
+			return err
+		}
+
+		if res.StatusCode() != http.StatusOK {
+			d.Reject(true)
+			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
+		}
+
+		// TODO: publish collect
 
 		return nil
 	})

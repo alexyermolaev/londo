@@ -28,23 +28,23 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 			j, err := json.Marshal(&re)
 			if err != nil {
 				l.LogChannel.Err <- err
-			} else {
-				// TODO: fix nested ifs
-				if err = l.AMQP.Emit(
-					exchange,
-					queue,
-					amqp.Publishing{
-						ContentType:   ContentType,
-						ReplyTo:       reply,
-						CorrelationId: e.ID.Hex(),
-						Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-						Body:          j,
-					}); err != nil {
-					l.LogChannel.Err <- err
-				} else {
-					l.LogChannel.Info <- "published " + e.Subject
-				}
+				return
 			}
+
+			if err = l.AMQP.Emit(
+				exchange,
+				queue,
+				amqp.Publishing{
+					ContentType:   ContentType,
+					ReplyTo:       reply,
+					CorrelationId: e.ID.Hex(),
+					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+					Body:          j,
+				}); err != nil {
+				l.LogChannel.Err <- err
+				return
+			}
+			l.LogChannel.Info <- "published " + e.Subject
 		}
 	})
 
@@ -64,19 +64,46 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 	j, err := json.Marshal(&e)
 	if err != nil {
 		l.LogChannel.Err <- err
-	} else {
-		// TODO: fix nested ifs
-		if err := l.AMQP.Emit(
-			exchange,
-			queue,
-			amqp.Publishing{
-				ContentType: ContentType,
-				Body:        j,
-			}); err != nil {
-			l.LogChannel.Err <- err
-		} else {
-			l.LogChannel.Info <- "enrolling new subject: " + e.Subject
-		}
+		return l
+	}
+
+	if err := l.AMQP.Emit(
+		exchange,
+		queue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Body:        j,
+		}); err != nil {
+		l.LogChannel.Err <- err
+		return l
+	}
+	l.LogChannel.Info <- "enrolling new subject: " + e.Subject
+
+	return l
+}
+
+func (l *Londo) PublishCollect(exchange string, queue string, s *Subject) *Londo {
+
+	e := CollectEvent{
+		CertID: s.CertID,
+	}
+
+	j, err := json.Marshal(&e)
+	if err != nil {
+		l.LogChannel.Err <- err
+		return l
+	}
+
+	// TODO: remove duplication
+	if err := l.AMQP.Emit(
+		exchange,
+		queue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Body:        j,
+		}); err != nil {
+		l.LogChannel.Err <- err
+		return l
 	}
 
 	return l
