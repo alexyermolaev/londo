@@ -162,11 +162,8 @@ func (l *Londo) ConsumeCollect() *Londo {
 			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 		}
 
-		// TODO: process response
-		//CompleteEnrollEvent{
-		//	CertID:      s.CertID,
-		//	Certificate: string(res.Body()),
-		//}
+		s.Certificate = string(res.Body())
+		l.PublishDbCommand(DbUpdateSubjCommand, &s)
 
 		return errors.New("not implemented")
 	})

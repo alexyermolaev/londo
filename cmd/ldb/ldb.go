@@ -1,9 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"github.com/alexyermolaev/londo"
 	"github.com/streadway/amqp"
-	"time"
 )
 
 func main() {
