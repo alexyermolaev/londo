@@ -105,6 +105,7 @@ func (l *Londo) PublishCollect(exchange string, queue string, s *Subject) *Londo
 		l.LogChannel.Err <- err
 		return l
 	}
+	l.LogChannel.Info <- s.Subject + " has been queued to be collected"
 
 	return l
 }

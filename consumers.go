@@ -57,7 +57,9 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return errors.New("remote returned " + strconv.Itoa(res.StatusCode()) + " status code")
 		}
 
-		// TODO: publish collect
+		l.PublishCollect(CollectExchange, CollectQueue, &s)
+
+		// TODO: let db know new subject is on its way
 
 		return nil
 	})
