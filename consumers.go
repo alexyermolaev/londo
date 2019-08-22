@@ -135,6 +135,8 @@ func (l *Londo) ConsumeCollect() *Londo {
 	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
 		return errors.New("not implemented")
 	})
+
+	return l
 }
 
 func (l *Londo) ConsumeDbRPC() *Londo {
@@ -159,7 +161,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbAddSubjcommand:
 
 			// TODO: Get rid of duplication
-			var e CSREvent
+			var e NewSubjectEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				d.Reject(false)
 				return err

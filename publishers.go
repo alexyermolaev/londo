@@ -116,7 +116,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 	switch cmd {
 	case DbAddSubjcommand:
 
-		e := CSREvent{
+		e := NewSubjectEvenet{
 			Subject:    s.Subject,
 			CSR:        s.CSR,
 			PrivateKey: s.PrivateKey,
