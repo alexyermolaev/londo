@@ -187,11 +187,12 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 		switch d.Type {
 		case DbDeleteSubjCommand:
-			if err := l.deleteSubject(&d); err != nil {
+			var certId int
+			if err := l.deleteSubject(&d, &certId); err != nil {
 				return err
 			}
 
-			log.Infof("certificate %d has been deleted", e.CertID)
+			log.Infof("certificate %d has been deleted", certId)
 
 		case DbAddSubjCommand:
 			var subj string
@@ -256,11 +257,12 @@ func (l *Londo) createNewSubject(d *amqp.Delivery, subj *string) error {
 	})
 }
 
-func (l *Londo) deleteSubject(d *amqp.Delivery) error {
+func (l *Londo) deleteSubject(d *amqp.Delivery, id *int) error {
 	var e DeleteSubjEvent
 	if err := json.Unmarshal(d.Body, &e); err != nil {
 		return err
 	}
+	id = &e.CertID
 
 	return l.Db.DeleteSubject(d.CorrelationId, e.CertID)
 }
