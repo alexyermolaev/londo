@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/alexyermolaev/londo"
+	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -19,7 +21,9 @@ func main() {
 	}
 
 	log.Info("starting grpc server")
-	srv := grpc.NewServer()
+	var opts []grpc.ServerOption
+	srv := grpc.NewServer(opts...)
+	londopb.RegisterCertServiceServer(s, &londo.GRPCServer{})
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT)
