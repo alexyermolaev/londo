@@ -1,3 +1,4 @@
+# TODO: update and describe config
 # Database Configuration
 mongodb:
   hostname: "localhost"

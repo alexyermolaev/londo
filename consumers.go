@@ -68,6 +68,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		var j EnrollResponse
 
+		// A failure here will be handled by collector once periodic check is ready
 		err = json.Unmarshal(res.Body(), &j)
 		if err != nil {
 			d.Reject(false)

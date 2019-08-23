@@ -5,6 +5,8 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// TODO: need to code scheduler for period collection of certificates
+
 func main() {
 	londo.S("collector").
 		AMQPConnection().

@@ -61,7 +61,7 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 
 	certType := r.config.CertParams.CertType
 
-	if s.AltNames != nil {
+	if len(s.AltNames) != 0 {
 		for _, a := range s.AltNames {
 			alts = alts + "," + a
 		}
