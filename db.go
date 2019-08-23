@@ -88,6 +88,7 @@ func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 
 func (m MongoDB) InsertSubject(s *Subject) error {
 	col := m.getSubjCollection()
+	s.ID = primitive.NewObjectID()
 
 	_, err := col.InsertOne(m.context, s)
 	return err
@@ -122,6 +123,7 @@ func (m MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 		{"$set", bson.D{
 			{"certificate", cert},
 			{"not_after", na},
+			{"updated_at", time.Now()},
 		}},
 	}
 

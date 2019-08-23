@@ -195,8 +195,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			log.Infof("certificate %d has been deleted", certId)
 
 		case DbAddSubjCommand:
-			var subj string
-			if err := l.createNewSubject(&d, &subj); err != nil {
+			var subj *string
+			if err := l.createNewSubject(&d, subj); err != nil {
 				return err
 			}
 
