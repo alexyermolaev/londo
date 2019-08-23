@@ -13,13 +13,14 @@ import (
 )
 
 const (
-	CsrType  = "CERTIFICATE REQUEST"
-	PKeyType = "PRIVATE KEY"
+	CsrType        = "CERTIFICATE REQUEST"
+	PrivateKeyType = "PRIVATE KEY"
+	PublickKeyType = "CERTIFICATE"
 )
 
-func ParsePublicCertificate(s Subject) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(s.Certificate))
-	if block == nil || block.Type != "CERTIFICATE" {
+func ParsePublicCertificate(c string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(c))
+	if block == nil || block.Type != PublickKeyType {
 		return nil, errors.New("failed to decode PEM block containing public key")
 	}
 
@@ -69,7 +70,7 @@ func EncodeCSR(b []byte) (string, error) {
 
 func EncodePKey(key *rsa.PrivateKey) (string, error) {
 	block := &pem.Block{
-		Type:  PKeyType,
+		Type:  PrivateKeyType,
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	}
 

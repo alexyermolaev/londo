@@ -2,11 +2,11 @@ package londo
 
 import (
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -47,9 +47,9 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		logrus.Info("requesting new certificate for " + s.Subject + " subject")
-		logrus.Debug(s.CSR)
-		logrus.Debug(s.PrivateKey)
+		log.Info("requesting new certificate for " + s.Subject + " subject")
+		log.Debug(s.CSR)
+		log.Debug(s.PrivateKey)
 
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
@@ -57,7 +57,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		logrus.Debug("response: " + string(res.Body()))
+		log.Debug("response: " + string(res.Body()))
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
@@ -223,15 +223,24 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err
 			}
 
+			log.Infof("added new subject: %s", e.Subject)
+
 		case DbUpdateSubjCommand:
 			var e CompleteEnrollEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err
 			}
 
-			if err := l.Db.UpdateSubjCert(e.CertID, e.Certificate); err != nil {
+			c, err := ParsePublicCertificate(e.Certificate)
+			if err != nil {
 				return err
 			}
+
+			if err := l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter); err != nil {
+				return err
+			}
+
+			log.Infof("subject with %d has been updated with new certificate", e.CertID)
 
 		default:
 			l.Log.Warn <- "unknown command received"

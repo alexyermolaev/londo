@@ -110,11 +110,16 @@ func (m MongoDB) DeleteSubject(hexId string, certid int) error {
 	return err
 }
 
-func (m MongoDB) UpdateSubjCert(certId int, cert string) error {
+func (m MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 	col := m.getSubjCollection()
 
-	filter := bson.M{"CertID": certId}
-	update := bson.M{"Certificate": cert}
+	filter := bson.M{"cert_id": certId}
+	update := bson.D{
+		{"$set", bson.D{
+			{"certificate", cert},
+			{"not_after", na},
+		}},
+	}
 
 	_, err := col.UpdateOne(m.context, filter, update)
 	if err != nil {
