@@ -2,7 +2,7 @@ package londo
 
 import log "github.com/sirupsen/logrus"
 
-func CheckFatalError(err error) {
+func fail(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}

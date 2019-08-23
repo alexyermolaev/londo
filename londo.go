@@ -1,11 +1,15 @@
 package londo
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 
+	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -33,6 +37,7 @@ type Londo struct {
 	Name       string
 	Db         *MongoDB
 	AMQP       *AMQP
+	GRPC       *GRPCServer
 	Config     *Config
 	RestClient *RestAPI
 }
@@ -42,7 +47,7 @@ func (l *Londo) AMQPConnection() *Londo {
 
 	log.Info("Connecting to RabbitMQ...")
 	l.AMQP, err = NewMQConnection(l.Config, l.Db)
-	CheckFatalError(err)
+	fail(err)
 
 	return l
 }
@@ -50,20 +55,20 @@ func (l *Londo) AMQPConnection() *Londo {
 func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Table) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	CheckFatalError(err)
+	fail(err)
 
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
-	CheckFatalError(err)
+	fail(err)
 
 	log.Infof("Declaring %s queue...", queue)
 	_, err = ch.QueueDeclare(
 		queue, false, false, false, false, args)
-	CheckFatalError(err)
+	fail(err)
 
 	log.Infof("Binding to %s queue...", queue)
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
-	CheckFatalError(err)
+	fail(err)
 
 	return l
 }
@@ -73,7 +78,7 @@ func (l *Londo) DbService() *Londo {
 
 	log.Info("Connecting to the database...")
 	l.Db, err = NewDBConnection(l.Config)
-	CheckFatalError(err)
+	fail(err)
 
 	return l
 }
@@ -89,9 +94,28 @@ func S(name string) *Londo {
 
 	log.Info("Reading configuration...")
 	l.Config, err = ReadConfig()
-	CheckFatalError(err)
+	fail(err)
 
 	log.Info("Starting " + l.Name + " service...")
+
+	return l
+}
+
+func (l *Londo) GRPCServer() *Londo {
+	log.Info("initializing grpc...")
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", l.Config.GRPC.Port))
+	fail(err)
+
+	opts := []grpc.ServerOption{}
+	srv := grpc.NewServer(opts...)
+	londopb.RegisterCertServiceServer(srv, &GRPCServer{})
+
+	go func() {
+		if err := srv.Serve(lis); err != nil {
+			fail(err)
+		}
+	}()
 
 	return l
 }
@@ -105,13 +129,9 @@ func (l *Londo) Run() {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 
-	for {
-		select {
-		case _ = <-s:
-			log.Info("Goodbye, Captain Sheridan!")
-			l.shutdown(0)
-		}
-	}
+	<-s
+	log.Info("Goodbye, Captain Sheridan!")
+	l.shutdown(0)
 }
 
 func (l *Londo) RestAPIClient() *Londo {

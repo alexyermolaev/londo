@@ -15,7 +15,7 @@ func (l *Londo) PublishExpiringCerts() *Londo {
 
 	cron.AddFunc(gron.Every(1*time.Minute), func() {
 		exp, err := l.Db.FindExpiringSubjects(720)
-		CheckFatalError(err)
+		fail(err)
 
 		for _, e := range exp {
 

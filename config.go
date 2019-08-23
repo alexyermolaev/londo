@@ -9,6 +9,10 @@ import (
 
 // TODO: need a way to validate config file
 
+type grpcConfig struct {
+	Port int `yaml:"port"`
+}
+
 type certParams struct {
 	Country             string `yaml:"country"`
 	Province            string `yaml:"province"`
@@ -50,6 +54,7 @@ type Config struct {
 	DB         db         `yaml:"mongodb"`
 	AMQP       rabbitmq   `yaml:"amqp"`
 	RestAPI    restApi    `yaml:"sectigo"`
+	GRPC       grpcConfig `yaml:"grpcConfig"`
 	CertParams certParams `yaml:"cert_params"`
 	Debug      int        `yaml:"debug"`
 }
