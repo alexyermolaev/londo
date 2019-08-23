@@ -30,6 +30,10 @@ func NewDBConnection(c *Config) (*MongoDB, error) {
 		return nil, err
 	}
 
+	if err := client.Ping(m.context, nil); err != nil {
+		return m, err
+	}
+
 	m.client = client
 	return m, nil
 }

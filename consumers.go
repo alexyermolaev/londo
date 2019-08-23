@@ -12,11 +12,6 @@ import (
 
 func (l *Londo) ConsumeEnroll() *Londo {
 	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
-
-		// A workaround for now; we don't need to process as fast as messages are being received.
-		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
-		time.Sleep(1 * time.Minute)
-
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
@@ -50,6 +45,10 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		log.Info("requesting new certificate for " + s.Subject + " subject")
 		log.Debug(s.CSR)
 		log.Debug(s.PrivateKey)
+
+		// A workaround for now; we don't need to process as fast as messages are being received.
+		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
+		time.Sleep(1 * time.Minute)
 
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
@@ -95,10 +94,6 @@ approach.
 */
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
-
-		// Same as another consumer
-		time.Sleep(1 * time.Minute)
-
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
 			return err
@@ -110,6 +105,9 @@ func (l *Londo) ConsumeRenew() *Londo {
 			err = d.Reject(true)
 			return err
 		}
+
+		// Same as another consumer
+		time.Sleep(1 * time.Minute)
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
@@ -157,9 +155,6 @@ func (l *Londo) ConsumeRenew() *Londo {
 
 func (l *Londo) ConsumeCollect() *Londo {
 	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
-
-		time.Sleep(1 * time.Minute)
-
 		// TODO: fix code duplication
 		s, err := UnmarshallMsg(&d)
 		if err != nil {
@@ -171,6 +166,8 @@ func (l *Londo) ConsumeCollect() *Londo {
 			err = d.Reject(true)
 			return err
 		}
+
+		time.Sleep(1 * time.Minute)
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
