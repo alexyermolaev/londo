@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package londoapi.v1;
+option go_package = "londopb";
+
+message Subject {
+    string subject = 1;
+    string certificate = 2;
+    string private_key = 3;
+    repeated string alt_names = 4;
+    repeated string targets = 5;
+}
+
+message GetSubjectRequest {
+    string subject = 1;
+}
+
+message GetSubjectResponse {
+    Subject subject = 1;
+}
+
+service CertService {
+    rpc GetSubject (GetSubjectRequest) returns (GetSubjectResponse);
+}
+
