@@ -19,7 +19,11 @@ const (
 )
 
 func ParsePublicCertificate(c string) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(c))
+	block, err := pem.Decode([]byte(c))
+	if err != nil {
+		return nil, err
+	}
+
 	if block == nil || block.Type != PublickKeyType {
 		return nil, errors.New("failed to decode PEM block containing public key")
 	}
