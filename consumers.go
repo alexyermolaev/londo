@@ -91,22 +91,25 @@ Since automated renew process involve manual approval by a human, it is much eas
 old certificate and issue new one. While this complicates logic, currently, this is the best
 approach.
 */
+// TODO: need separate revoke consumer
+
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
 		s, err := UnmarshalMsg(&d)
 		if err != nil {
-			return err
-		}
-
-		res, err := l.RestClient.Revoke(s.CertID)
-		// TODO: Response result processing needs to be elsewhere
-		if err != nil {
-			err = d.Reject(true)
+			d.Reject(false)
 			return err
 		}
 
 		// Same as another consumer
 		time.Sleep(1 * time.Minute)
+
+		res, err := l.RestClient.Revoke(s.CertID)
+		// TODO: Response result processing needs to be elsewhere
+		if err != nil {
+			d.Reject(true)
+			return err
+		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
