@@ -11,7 +11,7 @@ import (
 
 func (l *Londo) ConsumeEnroll() *Londo {
 	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
-		s, err := UnmarshalMsg(&d)
+		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
 			return err
@@ -95,7 +95,7 @@ approach.
 
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
-		s, err := UnmarshalMsg(&d)
+		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
 			return err
@@ -155,7 +155,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 func (l *Londo) ConsumeCollect() *Londo {
 	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
 		// TODO: fix code duplication
-		s, err := UnmarshalMsg(&d)
+		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			return err
 		}
@@ -187,55 +187,29 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 		switch d.Type {
 		case DbDeleteSubjCommand:
-			var e DeleteSubjEvent
-			if err := json.Unmarshal(d.Body, &e); err != nil {
+			if err := l.deleteSubject(&d); err != nil {
 				return err
 			}
 
-			if err := l.Db.DeleteSubject(d.CorrelationId, e.CertID); err != nil {
-				return err
-			}
-
-			log.Infof("certifcate %d has been deleted", e.CertID)
+			log.Infof("certificate %d has been deleted", e.CertID)
 
 		case DbAddSubjCommand:
-			var e NewSubjectEvenet
-			if err := json.Unmarshal(d.Body, &e); err != nil {
+			var subj string
+			if err := l.createNewSubject(&d, &subj); err != nil {
 				return err
 			}
 
-			if err := l.Db.InsertSubject(&Subject{
-				Subject:    e.Subject,
-				CSR:        e.CSR,
-				PrivateKey: e.PrivateKey,
-				CertID:     e.CertID,
-				OrderID:    e.OrderID,
-				CreatedAt:  time.Now(),
-				UpdatedAt:  time.Now(),
-				Targets:    e.Targets,
-				AltNames:   e.AltNames,
-			}); err != nil {
-				return err
-			}
-
-			log.Infof("added new subject: %s", e.Subject)
+			log.Infof("added new subject: %s", subj)
 
 		case DbUpdateSubjCommand:
-			var e CompleteEnrollEvent
-			if err := json.Unmarshal(d.Body, &e); err != nil {
+			var certId int
+			if err := l.updateSubject(&d, &certId); err != nil {
 				return err
 			}
 
-			c, err := ParsePublicCertificate(e.Certificate)
-			if err != nil {
-				return err
-			}
+			log.Infof("subject with %d has been updated with new certificate", certId)
 
-			if err := l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter); err != nil {
-				return err
-			}
-
-			log.Infof("subject with %d has been updated with new certificate", e.CertID)
+		case DbGetSubjectCommand:
 
 		default:
 			log.Warn("unknown command received: %s", d.Type)
@@ -245,4 +219,48 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	})
 
 	return l
+}
+
+func (l *Londo) updateSubject(d *amqp.Delivery, id *int) error {
+	var e CompleteEnrollEvent
+	if err := json.Unmarshal(d.Body, &e); err != nil {
+		return err
+	}
+	id = &e.CertID
+
+	c, err := ParsePublicCertificate(e.Certificate)
+	if err != nil {
+		return err
+	}
+
+	return l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter)
+}
+
+func (l *Londo) createNewSubject(d *amqp.Delivery, subj *string) error {
+	var e NewSubjectEvenet
+	if err := json.Unmarshal(d.Body, &e); err != nil {
+		return err
+	}
+	subj = &e.Subject
+
+	return l.Db.InsertSubject(&Subject{
+		Subject:    e.Subject,
+		CSR:        e.CSR,
+		PrivateKey: e.PrivateKey,
+		CertID:     e.CertID,
+		OrderID:    e.OrderID,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		Targets:    e.Targets,
+		AltNames:   e.AltNames,
+	})
+}
+
+func (l *Londo) deleteSubject(d *amqp.Delivery) error {
+	var e DeleteSubjEvent
+	if err := json.Unmarshal(d.Body, &e); err != nil {
+		return err
+	}
+
+	return l.Db.DeleteSubject(d.CorrelationId, e.CertID)
 }

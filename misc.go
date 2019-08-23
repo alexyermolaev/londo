@@ -5,7 +5,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func UnmarshalMsg(d *amqp.Delivery) (Subject, error) {
+func UnmarshalSubjMsg(d *amqp.Delivery) (Subject, error) {
 	var s Subject
 	if err := json.Unmarshal(d.Body, &s); err != nil {
 		d.Reject(false)

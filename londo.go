@@ -29,6 +29,7 @@ const (
 	DbDeleteSubjCommand = "subj.delete"
 	DbAddSubjCommand    = "subj.add"
 	DbUpdateSubjCommand = "subj.update"
+	DbGetSubjectCommand = "subj.get"
 
 	ContentType = "application/json"
 )
