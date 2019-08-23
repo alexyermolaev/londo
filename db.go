@@ -148,7 +148,6 @@ type Subject struct {
 	NotAfter    time.Time          `bson:"not_after"`
 	CreatedAt   time.Time          `bson:"created_at"`
 	UpdatedAt   time.Time          `bson:"updated_at"`
-	//Retired     bool               `bson:"retired"`
-	Targets  []string `bson:"targets"`
-	AltNames []string `bson:"alt_names"`
+	Targets     []string           `bson:"targets"`
+	AltNames    []string           `bson:"alt_names"`
 }

@@ -3,7 +3,6 @@ package londo
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -12,7 +11,7 @@ import (
 
 func (l *Londo) ConsumeEnroll() *Londo {
 	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
-		s, err := UnmarshallMsg(&d)
+		s, err := UnmarshalMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
 			return err
@@ -94,7 +93,7 @@ approach.
 */
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
-		s, err := UnmarshallMsg(&d)
+		s, err := UnmarshalMsg(&d)
 		if err != nil {
 			return err
 		}
@@ -114,38 +113,35 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return err
 		}
 
-		if d.ReplyTo != "" {
-			// TODO: Needs to be extract into its own method
-			e := DeleteSubjEvent{
-				CertID: s.CertID,
-			}
-
-			// The error should never happen, or should it?
-			j, err := json.Marshal(&e)
-			if err != nil {
-				err = d.Reject(false)
-				return err
-			}
-
-			if err := l.AMQP.Emit(
-				"",
-				d.ReplyTo,
-				amqp.Publishing{
-					ContentType:   "application/json",
-					Type:          DbDeleteSubjCommand,
-					CorrelationId: d.CorrelationId,
-					Body:          j,
-				}); err != nil {
-				err = d.Reject(false)
-				return err
-			} else {
-				l.Log.Info <- "requesting deletion of " + s.Subject
-			}
+		e := DeleteSubjEvent{
+			CertID: s.CertID,
 		}
 
-		l.PublishNewSubject(EnrollExchange, EnrollQueue, &s)
+		// The error should never happen, or should it?
+		j, err := json.Marshal(&e)
+		if err != nil {
+			err = d.Reject(false)
+			return err
+		}
 
-		l.Log.Info <- "subject " + s.Subject + " received"
+		if err := l.AMQP.Emit(
+			DbReplyExchange,
+			DbReplyQueue,
+			amqp.Publishing{
+				ContentType:   "application/json",
+				Type:          DbDeleteSubjCommand,
+				CorrelationId: d.CorrelationId,
+				Body:          j,
+			}); err != nil {
+			err = d.Reject(false)
+			return err
+		}
+
+		log.Infof("requested deletion of %s", s.Subject)
+
+		l.PublishNewSubject(&s)
+
+		log.Infof("sent %s subject for new enrollment", s.Subject)
 
 		return nil
 	})
@@ -156,7 +152,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 func (l *Londo) ConsumeCollect() *Londo {
 	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
 		// TODO: fix code duplication
-		s, err := UnmarshallMsg(&d)
+		s, err := UnmarshalMsg(&d)
 		if err != nil {
 			return err
 		}
@@ -197,10 +193,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err
 			}
 
-			l.Log.Info <- "certificate " + strconv.Itoa(e.CertID) + " has been deleted."
+			log.Infof("certifcate %d has been deleted", e.CertID)
 
 		case DbAddSubjCommand:
-			// TODO: Get rid of duplication
 			var e NewSubjectEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err
@@ -240,7 +235,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			log.Infof("subject with %d has been updated with new certificate", e.CertID)
 
 		default:
-			l.Log.Warn <- "unknown command received"
+			log.Warn("unknown command received: %s", d.Type)
 		}
 
 		return nil

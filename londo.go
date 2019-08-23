@@ -34,7 +34,6 @@ type Londo struct {
 	Db         *MongoDB
 	AMQP       *AMQP
 	Config     *Config
-	Log        *Log
 	RestClient *RestAPI
 }
 
@@ -42,7 +41,7 @@ func (l *Londo) AMQPConnection() *Londo {
 	var err error
 
 	log.Info("Connecting to RabbitMQ...")
-	l.AMQP, err = NewMQConnection(l.Config, l.Db, l.Log)
+	l.AMQP, err = NewMQConnection(l.Config, l.Db)
 	CheckFatalError(err)
 
 	return l
@@ -84,7 +83,6 @@ func S(name string) *Londo {
 
 	l := &Londo{
 		Name: name,
-		Log:  CreateLogChannel(),
 	}
 
 	var err error
@@ -112,17 +110,6 @@ func (l *Londo) Run() {
 		case _ = <-s:
 			log.Info("Goodbye, Captain Sheridan!")
 			l.shutdown(0)
-		case m := <-l.Log.Info:
-			log.Info(m)
-		case m := <-l.Log.Warn:
-			log.Warn(m)
-		case m := <-l.Log.Debug:
-			log.Debug(m)
-		case m := <-l.Log.Err:
-			log.Error(m)
-		case m := <-l.Log.Abort:
-			log.Error(m)
-			l.shutdown(1)
 		}
 	}
 }
@@ -136,9 +123,11 @@ func (l *Londo) shutdown(code int) {
 	if l.Db == nil {
 		os.Exit(code)
 	}
+
 	if err := l.Db.Disconnect(); err != nil {
 		log.Error(err)
 		code = 1
 	}
+
 	os.Exit(code)
 }

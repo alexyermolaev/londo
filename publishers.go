@@ -2,15 +2,15 @@ package londo
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 
 	"github.com/roylee0704/gron"
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
-func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string) *Londo {
+func (l *Londo) PublishExpiringCerts() *Londo {
 	cron := gron.New()
 
 	cron.AddFunc(gron.Every(1*time.Minute), func() {
@@ -28,24 +28,24 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 
 			j, err := json.Marshal(&re)
 			if err != nil {
-				l.Log.Err <- err
+				log.Error(err)
 				return
 			}
 
 			if err = l.AMQP.Emit(
-				exchange,
-				queue,
+				RenewExchange,
+				RenewQueue,
 				amqp.Publishing{
 					ContentType:   ContentType,
-					ReplyTo:       reply,
 					CorrelationId: e.ID.Hex(),
 					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
 					Body:          j,
 				}); err != nil {
-				l.Log.Err <- err
+				log.Error(err)
 				return
 			}
-			l.Log.Info <- "published " + e.Subject
+
+			log.Infof("published %s", e.Subject)
 		}
 	})
 
@@ -54,7 +54,7 @@ func (l *Londo) PublishExpiringCerts(exchange string, queue string, reply string
 	return l
 }
 
-func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Londo {
+func (l *Londo) PublishNewSubject(s *Subject) *Londo {
 
 	e := EnrollEvent{
 		Subject:  s.Subject,
@@ -64,21 +64,22 @@ func (l *Londo) PublishNewSubject(exchange string, queue string, s *Subject) *Lo
 
 	j, err := json.Marshal(&e)
 	if err != nil {
-		l.Log.Err <- err
+		log.Error(err)
 		return l
 	}
 
 	if err := l.AMQP.Emit(
-		exchange,
-		queue,
+		EnrollExchange,
+		EnrollQueue,
 		amqp.Publishing{
 			ContentType: ContentType,
 			Body:        j,
 		}); err != nil {
-		l.Log.Err <- err
+		log.Error(err)
 		return l
 	}
-	l.Log.Info <- "enrolling new subject: " + e.Subject
+
+	log.Infof("enrolling %s subject", e.Subject)
 
 	return l
 }
@@ -87,7 +88,6 @@ func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 
 	j, _ := json.Marshal(&event)
 
-	// TODO: remove duplication
 	if err := l.AMQP.Emit(
 		CollectExchange,
 		CollectQueue,
@@ -95,10 +95,11 @@ func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 			ContentType: ContentType,
 			Body:        j,
 		}); err != nil {
-		l.Log.Err <- err
+		log.Error(err)
 		return l
 	}
-	l.Log.Info <- strconv.Itoa(event.CertID) + " has been queued to be collected"
+
+	log.Infof("%d has been queued up to be collected", event.CertID)
 
 	return l
 }
@@ -110,7 +111,6 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 
 	switch cmd {
 	case DbAddSubjCommand:
-
 		e = NewSubjectEvenet{
 			Subject:    s.Subject,
 			CSR:        s.CSR,
@@ -132,13 +132,13 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 		logMsg = "letting db know that " + strconv.Itoa(s.CertID) + " needs to be updated with a certificate."
 
 	default:
-		l.Log.Err <- errors.New("unknown db command: " + cmd)
+		log.Errorf("received unknown db command: %s", cmd)
 		return l
 	}
 
 	j, err := json.Marshal(&e)
 	if err != nil {
-		l.Log.Err <- err
+		log.Error(err)
 		return l
 	}
 
@@ -150,11 +150,11 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 			Type:        cmd,
 			Body:        j,
 		}); err != nil {
-		l.Log.Err <- err
+		log.Error(err)
 		return l
 	}
 
-	l.Log.Info <- logMsg
+	log.Info(logMsg)
 
 	return l
 }
