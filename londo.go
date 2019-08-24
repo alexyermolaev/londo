@@ -189,11 +189,3 @@ func (l *Londo) shutdown(code int) {
 
 	os.Exit(code)
 }
-
-func (l *Londo) DbGetSubjectCommand() string {
-	return DbGetSubjectCommand
-}
-
-func (l *Londo) GRPCServerExchange() string {
-	return GRPCServerExchange
-}

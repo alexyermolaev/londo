@@ -181,6 +181,20 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
+func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject) *Londo {
+	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+		var s Subject
+		if err := json.Unmarshal(d.Body, &s); err != nil {
+			return err
+		}
+
+		ch <- s
+		return nil
+	})
+
+	return l
+}
+
 func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) error {
 
