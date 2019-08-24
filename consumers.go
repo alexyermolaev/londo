@@ -187,24 +187,24 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 		switch d.Type {
 		case DbDeleteSubjCommand:
-			var certId int
-			if err := l.deleteSubject(&d, &certId); err != nil {
+			certId, err := l.deleteSubject(&d)
+			if err != nil {
 				return err
 			}
 
 			log.Infof("certificate %d has been deleted", certId)
 
 		case DbAddSubjCommand:
-			var subj *string
-			if err := l.createNewSubject(&d, subj); err != nil {
+			subj, err := l.createNewSubject(&d)
+			if err != nil {
 				return err
 			}
 
-			log.Infof("added new subject: %s", subj)
+			log.Infof("%s has been added", subj)
 
 		case DbUpdateSubjCommand:
-			var certId int
-			if err := l.updateSubject(&d, &certId); err != nil {
+			certId, err := l.updateSubject(&d)
+			if err != nil {
 				return err
 			}
 
@@ -222,29 +222,27 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	return l
 }
 
-func (l *Londo) updateSubject(d *amqp.Delivery, id *int) error {
+func (l *Londo) updateSubject(d *amqp.Delivery) (int, error) {
 	var e CompleteEnrollEvent
 	if err := json.Unmarshal(d.Body, &e); err != nil {
-		return err
+		return 0, err
 	}
-	id = &e.CertID
 
 	c, err := ParsePublicCertificate(e.Certificate)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter)
+	return e.CertID, l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter)
 }
 
-func (l *Londo) createNewSubject(d *amqp.Delivery, subj *string) error {
+func (l *Londo) createNewSubject(d *amqp.Delivery) (string, error) {
 	var e NewSubjectEvenet
 	if err := json.Unmarshal(d.Body, &e); err != nil {
-		return err
+		return "", err
 	}
-	subj = &e.Subject
 
-	return l.Db.InsertSubject(&Subject{
+	return e.Subject, l.Db.InsertSubject(&Subject{
 		Subject:    e.Subject,
 		CSR:        e.CSR,
 		PrivateKey: e.PrivateKey,
@@ -257,12 +255,11 @@ func (l *Londo) createNewSubject(d *amqp.Delivery, subj *string) error {
 	})
 }
 
-func (l *Londo) deleteSubject(d *amqp.Delivery, id *int) error {
+func (l *Londo) deleteSubject(d *amqp.Delivery) (int, error) {
 	var e DeleteSubjEvent
 	if err := json.Unmarshal(d.Body, &e); err != nil {
-		return err
+		return 0, err
 	}
-	id = &e.CertID
 
-	return l.Db.DeleteSubject(d.CorrelationId, e.CertID)
+	return e.CertID, l.Db.DeleteSubject(d.CorrelationId, e.CertID)
 }
