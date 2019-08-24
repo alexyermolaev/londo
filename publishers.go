@@ -13,7 +13,7 @@ import (
 func (l *Londo) PublishExpiringCerts() *Londo {
 	cron := gron.New()
 
-	cron.AddFunc(gron.Every(1*time.Minute), func() {
+	cron.AddFunc(gron.Every(1*time.Hour), func() {
 		exp, err := l.Db.FindExpiringSubjects(720)
 		fail(err)
 
@@ -118,8 +118,6 @@ func (l *Londo) PublishReplySubject(s *Subject, reply string) *Londo {
 		log.Error(err)
 		return l
 	}
-
-	log.Infof("sending reply with %s subject", s.Subject)
 
 	return l
 }

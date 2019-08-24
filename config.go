@@ -54,7 +54,7 @@ type Config struct {
 	DB         db         `yaml:"mongodb"`
 	AMQP       rabbitmq   `yaml:"amqp"`
 	RestAPI    restApi    `yaml:"sectigo"`
-	GRPC       grpcConfig `yaml:"grpcConfig"`
+	GRPC       grpcConfig `yaml:"grpc"`
 	CertParams certParams `yaml:"cert_params"`
 	Debug      int        `yaml:"debug"`
 }

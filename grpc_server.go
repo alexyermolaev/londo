@@ -2,10 +2,14 @@ package londo
 
 import (
 	"context"
-	"net"
+	"errors"
+	"fmt"
 
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type GRPCServer struct {
@@ -14,9 +18,12 @@ type GRPCServer struct {
 
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
 	subj := Subject{Subject: req.Subject}
-	p := g.getPeerAddr(ctx)
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("unable to get ip address from remote")
+	}
 
-	log.Info("%s : GET subject %s, addr: %s", p.Addr.String(), subj)
+	log.Infof("%s : get subject %s", p.Addr.String(), req.Subject)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, p.Addr.String()); err != nil {
 		return nil, err
@@ -24,14 +31,21 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 
 	log.Debug("creating consumer")
 	ch := make(chan Subject)
-	g.Londo.ConsumeGrpcReplies(GRPCServerExchange, ch)
+	g.Londo.ConsumeGrpcReplies(p.Addr.String(), ch)
 
-	log.Debug("request %s", subj)
+	log.Debugf("request %s", req.Subject)
 	g.Londo.PublishDbCommand(DbGetSubjectCommand, &subj, p.Addr.String())
 
 	rs := <-ch
 
-	log.Debug("%s : RESP %s", p.Addr.String(), rs.Subject)
+	if rs.Subject == "" {
+		log.Errorf("%s : code %d, resp %s", p.Addr.String(), codes.NotFound, req.Subject)
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("%s not found", req.Subject))
+	}
+
+	log.Infof("%s : resp %s", p.Addr.String(), rs.Subject)
 	return &londopb.GetSubjectResponse{
 		Subject: &londopb.Subject{
 			Subject:     rs.Subject,
@@ -41,14 +55,4 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 			Targets:     rs.Targets,
 		},
 	}, nil
-}
-
-type Peer struct {
-	Addr net.Addr
-}
-
-type peerKey struct{}
-
-func (g *GRPCServer) getPeerAddr(ctx context.Context) *Peer {
-	return ctx.Value(peerKey{}).(*Peer)
 }

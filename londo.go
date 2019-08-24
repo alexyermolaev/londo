@@ -2,6 +2,7 @@ package londo
 
 import (
 	"fmt"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"os"
 	"os/signal"
@@ -149,7 +150,10 @@ func (l *Londo) GRPCServer() *Londo {
 		Londo: l,
 	})
 
+	reflection.Register(srv)
+
 	go func() {
+		log.Infof("server is running on port %d", l.Config.GRPC.Port)
 		if err := srv.Serve(lis); err != nil {
 			fail(err)
 		}

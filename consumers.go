@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -10,35 +11,35 @@ import (
 )
 
 func (l *Londo) ConsumeEnroll() *Londo {
-	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) error {
+	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) (error, bool) {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		key, err := GeneratePrivateKey(l.Config.CertParams.BitSize)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		s.PrivateKey, err = EncodePKey(key)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		csr, err := GenerateCSR(key, s.Subject, l.Config)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		s.CSR, err = EncodeCSR(csr)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		log.Info("requesting new certificate for " + s.Subject + " subject")
@@ -52,14 +53,14 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
 			d.Reject(true)
-			return err
+			return err, false
 		}
 
 		log.Debug("response: " + string(res.Body()))
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			return err
+			return err, false
 		}
 
 		// TODO: need a better way to log remote errors
@@ -70,7 +71,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		err = json.Unmarshal(res.Body(), &j)
 		if err != nil {
 			d.Reject(false)
-			return err
+			return err, false
 		}
 
 		l.PublishCollect(j.SslId)
@@ -80,7 +81,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		l.PublishDbCommand(DbAddSubjCommand, &s, "")
 
-		return nil
+		return nil, false
 	})
 
 	return l
@@ -94,11 +95,11 @@ approach.
 // TODO: need separate revoke consumer
 
 func (l *Londo) ConsumeRenew() *Londo {
-	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) error {
+	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) (error, bool) {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			return err
+			return err, false
 		}
 
 		// Same as another consumer
@@ -108,12 +109,12 @@ func (l *Londo) ConsumeRenew() *Londo {
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			d.Reject(true)
-			return err
+			return err, false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
-			return err
+			return err, false
 		}
 
 		e := DeleteSubjEvent{
@@ -124,7 +125,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 		j, err := json.Marshal(&e)
 		if err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		if err := l.AMQP.Emit(
@@ -137,7 +138,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 				Body:          j,
 			}); err != nil {
 			err = d.Reject(false)
-			return err
+			return err, false
 		}
 
 		log.Infof("requested deletion of %s", s.Subject)
@@ -145,77 +146,81 @@ func (l *Londo) ConsumeRenew() *Londo {
 		l.PublishNewSubject(&s)
 		log.Infof("sent %s subject for new enrollment", s.Subject)
 
-		return nil
+		return nil, false
 	})
 
 	return l
 }
 
 func (l *Londo) ConsumeCollect() *Londo {
-	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) error {
+	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) (error, bool) {
 		// TODO: fix code duplication
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
-			return err
+			return err, false
 		}
 
 		res, err := l.RestClient.Collect(s.CertID)
 		if err != nil {
 			err = d.Reject(true)
-			return err
+			return err, false
 		}
 
 		time.Sleep(1 * time.Minute)
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			return err
+			return err, false
 		}
 
 		s.Certificate = string(res.Body())
 		l.PublishDbCommand(DbUpdateSubjCommand, &s, "")
 
-		return nil
+		return nil, false
 	})
 
 	return l
 }
 
 func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject) *Londo {
-	go l.AMQP.Consume(queue, func(d amqp.Delivery) error {
+	go l.AMQP.Consume(queue, func(d amqp.Delivery) (error, bool) {
 		var s Subject
 		if err := json.Unmarshal(d.Body, &s); err != nil {
-			return err
+			return err, false
 		}
 
 		ch <- s
-		return nil
+
+		return nil, true
 	})
 
 	return l
 }
 
 func (l *Londo) ConsumeDbRPC() *Londo {
-	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) error {
+	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) (error, bool) {
 
 		switch d.Type {
 		case DbGetSubjectCommand:
 			var e GetSubjectEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
-				return err
+				return err, false
 			}
 
 			subj, err := l.Db.FindSubject(e.Subject)
-			if err != nil {
-				log.Error(err)
-			}
 
 			l.PublishReplySubject(&subj, d.ReplyTo)
+
+			if err != nil {
+				log.Error(errors.New("subject " + e.Subject + " not found"))
+			} else {
+				log.Infof("sent %s back to %s queue", e.Subject, d.ReplyTo)
+			}
 
 		case DbDeleteSubjCommand:
 			certId, err := l.deleteSubject(&d)
 			if err != nil {
-				return err
+				return err, false
 			}
 
 			log.Infof("certificate %d has been deleted", certId)
@@ -223,7 +228,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbAddSubjCommand:
 			subj, err := l.createNewSubject(&d)
 			if err != nil {
-				return err
+				return err, false
 			}
 
 			log.Infof("%s has been added", subj)
@@ -231,7 +236,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbUpdateSubjCommand:
 			certId, err := l.updateSubject(&d)
 			if err != nil {
-				return err
+				return err, false
 			}
 
 			log.Infof("subject with %d has been updated with new certificate", certId)
@@ -240,7 +245,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			log.Warn("unknown command received: %s", d.Type)
 		}
 
-		return nil
+		return nil, false
 	})
 
 	return l

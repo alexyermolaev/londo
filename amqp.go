@@ -45,7 +45,7 @@ func (a *AMQP) Emit(exchange string, key string, msg amqp.Publishing) error {
 	return ch.Publish(exchange, key, false, false, msg)
 }
 
-func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
+func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) (error, bool)) {
 	log.Infof("consuming %s queue...", queue)
 
 	ch, err := a.connection.Channel()
@@ -62,14 +62,17 @@ func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) error) {
 	}
 
 	for d := range delivery {
-		err := f(d)
+		err, abort := f(d)
 		if err != nil {
 			log.Error(err)
 		} else {
 			d.Ack(false)
 		}
+
+		if abort {
+			break
+		}
 	}
 
-	// TODO: Need better way to handle unexpectedly closed channel
-	log.Warn("consumer has exited. malformed json message")
+	log.Info("consumer has terminated")
 }
