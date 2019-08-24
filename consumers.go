@@ -226,19 +226,24 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			length := len(subjs)
+			length := len(subjs) - 1
+			var cmd string
+
+			if length == -1 {
+				var s Subject
+				l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
+				log.Infof("sent none -> %s queue", d.ReplyTo)
+				return nil, true
+			}
 
 			for i := 0; i <= length; i++ {
 
 				if i == length {
-					var s Subject
-					l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
-					log.Info("sending close channel message...")
-				} else {
-					l.PublishReplySubject(&subjs[i], d.ReplyTo, "")
-					log.Infof("sent %s back to %s queue", subjs[i].Subject, d.ReplyTo)
+					cmd = CloseChannelCmd
 				}
 
+				l.PublishReplySubject(&subjs[i], d.ReplyTo, cmd)
+				log.Infof("sent %s -> %s queue", subjs[i].Subject, d.ReplyTo)
 			}
 
 		case DbGetSubjectComd:

@@ -92,6 +92,14 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	for {
 		select {
 		case rs := <-ch:
+
+			if rs.Subject == "" {
+				log.Errorf("%s: code %d", ip, codes.NotFound)
+				return status.Errorf(
+					codes.NotFound,
+					fmt.Sprintf("no subjects found"))
+			}
+
 			res := &londopb.GetSubjectResponse{
 				Subject: &londopb.Subject{
 					Subject:     rs.Subject,
