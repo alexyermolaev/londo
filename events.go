@@ -26,6 +26,10 @@ type CompleteEnrollEvent struct {
 	Certificate string
 }
 
+type GetSubjectEvenet struct {
+	Subject string
+}
+
 type NewSubjectEvenet struct {
 	Subject    string
 	CSR        string

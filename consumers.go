@@ -73,12 +73,12 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err
 		}
 
-		l.PublishCollect(CollectEvent{CertID: j.SslId})
+		l.PublishCollect(j.SslId)
 
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
 
-		l.PublishDbCommand(DbAddSubjCommand, &s)
+		l.PublishDbCommand(DbAddSubjCommand, &s, "")
 
 		return nil
 	})
@@ -143,7 +143,6 @@ func (l *Londo) ConsumeRenew() *Londo {
 		log.Infof("requested deletion of %s", s.Subject)
 
 		l.PublishNewSubject(&s)
-
 		log.Infof("sent %s subject for new enrollment", s.Subject)
 
 		return nil
@@ -174,7 +173,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}
 
 		s.Certificate = string(res.Body())
-		l.PublishDbCommand(DbUpdateSubjCommand, &s)
+		l.PublishDbCommand(DbUpdateSubjCommand, &s, "")
 
 		return nil
 	})
@@ -186,6 +185,19 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) error {
 
 		switch d.Type {
+		case DbGetSubjectCommand:
+			var e GetSubjectEvenet
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				return err
+			}
+
+			subj, err := l.Db.FindSubject(e.Subject)
+			if err != nil {
+				log.Error(err)
+			}
+
+			l.PublishReplySubject(&subj, d.ReplyTo)
+
 		case DbDeleteSubjCommand:
 			certId, err := l.deleteSubject(&d)
 			if err != nil {
@@ -209,8 +221,6 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			}
 
 			log.Infof("subject with %d has been updated with new certificate", certId)
-
-		case DbGetSubjectCommand:
 
 		default:
 			log.Warn("unknown command received: %s", d.Type)

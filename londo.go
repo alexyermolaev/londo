@@ -25,6 +25,8 @@ const (
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
 
+	GRPCServerExchange = "grpc"
+
 	// Db Commands
 	DbDeleteSubjCommand = "subj.delete"
 	DbAddSubjCommand    = "subj.add"
@@ -151,4 +153,8 @@ func (l *Londo) shutdown(code int) {
 	}
 
 	os.Exit(code)
+}
+
+func (l *Londo) DbGetSubjectCommand() string {
+	return DbGetSubjectCommand
 }

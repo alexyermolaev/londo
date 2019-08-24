@@ -55,7 +55,6 @@ func (l *Londo) PublishExpiringCerts() *Londo {
 }
 
 func (l *Londo) PublishNewSubject(s *Subject) *Londo {
-
 	e := EnrollEvent{
 		Subject:  s.Subject,
 		AltNames: s.AltNames,
@@ -84,9 +83,11 @@ func (l *Londo) PublishNewSubject(s *Subject) *Londo {
 	return l
 }
 
-func (l *Londo) PublishCollect(event CollectEvent) *Londo {
+func (l *Londo) PublishCollect(crtId int) *Londo {
+	e := CollectEvent{CertID: crtId}
 
-	j, _ := json.Marshal(&event)
+	// TODO: error handling
+	j, _ := json.Marshal(&e)
 
 	if err := l.AMQP.Emit(
 		CollectExchange,
@@ -99,17 +100,38 @@ func (l *Londo) PublishCollect(event CollectEvent) *Londo {
 		return l
 	}
 
-	log.Infof("%d has been queued up to be collected", event.CertID)
+	log.Infof("%d has been queued up to be collected", e.CertID)
 
 	return l
 }
 
-func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
+func (l *Londo) PublishReplySubject(s *Subject, reply string) *Londo {
+	j, _ := json.Marshal(&s)
 
+	if err := l.AMQP.Emit(
+		GRPCServerExchange,
+		reply,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Body:        j,
+		}); err != nil {
+		log.Error(err)
+		return l
+	}
+
+	log.Infof("sending reply with %s subject", s.Subject)
+
+	return l
+}
+
+func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 	var logMsg string
 	var e interface{}
 
 	switch cmd {
+	case DbGetSubjectCommand:
+		e = GetSubjectEvenet{Subject: s.Subject}
+
 	case DbAddSubjCommand:
 		e = NewSubjectEvenet{
 			Subject:    s.Subject,
@@ -148,6 +170,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject) *Londo {
 		amqp.Publishing{
 			ContentType: ContentType,
 			Type:        cmd,
+			ReplyTo:     reply,
 			Body:        j,
 		}); err != nil {
 		log.Error(err)

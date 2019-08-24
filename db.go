@@ -135,6 +135,15 @@ func (m MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 	return nil
 }
 
+func (m MongoDB) FindSubject(s string) (Subject, error) {
+	col := m.getSubjCollection()
+	filter := bson.M{"subject": s}
+	var res Subject
+
+	err := col.FindOne(m.context, filter).Decode(&res)
+	return res, err
+}
+
 func (m MongoDB) getSubjCollection() *mongo.Collection {
 	return m.client.Database(m.Name).Collection("subjects")
 }
