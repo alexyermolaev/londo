@@ -13,6 +13,9 @@ func main() {
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
 			amqp.ExchangeDirect, nil).
+		DeclareExchange(
+			londo.GRPCServerExchange,
+			amqp.ExchangeDirect).
 		GRPCServer().
 		Run()
 }

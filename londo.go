@@ -60,20 +60,53 @@ func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Ta
 	defer ch.Close()
 	fail(err)
 
+	log.Infof("declaring %s exchange...", exchange)
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
 	fail(err)
 
-	log.Infof("Declaring %s queue...", queue)
-	_, err = ch.QueueDeclare(
+	log.Infof("declaring %s queue...", queue)
+	q, err := ch.QueueDeclare(
 		queue, false, false, false, false, args)
 	fail(err)
 
-	log.Infof("Binding to %s queue...", queue)
+	log.Infof("binding to %s queue...", q.Name)
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
 	fail(err)
 
 	return l
+}
+
+// TODO: refactor
+func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
+	ch, err := l.AMQP.connection.Channel()
+	defer ch.Close()
+	fail(err)
+
+	log.Infof("declaring %s exchange...", exchange)
+	err = ch.ExchangeDeclare(
+		exchange, kind, true, false, false, false, nil)
+	fail(err)
+
+	return l
+}
+
+// TODO: refactor
+func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
+	ch, err := l.AMQP.connection.Channel()
+	defer ch.Close()
+	fail(err)
+
+	log.Infof("declaring %s queue...", queue)
+	q, err := ch.QueueDeclare(queue, false, true, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("binding to %s queue...", q.Name)
+	err = ch.QueueBind(queue, queue, exchange, false, nil)
+
+	return err
 }
 
 func (l *Londo) DbService() *Londo {
@@ -112,7 +145,9 @@ func (l *Londo) GRPCServer() *Londo {
 
 	opts := []grpc.ServerOption{}
 	srv := grpc.NewServer(opts...)
-	londopb.RegisterCertServiceServer(srv, &GRPCServer{})
+	londopb.RegisterCertServiceServer(srv, &GRPCServer{
+		Londo: l,
+	})
 
 	go func() {
 		if err := srv.Serve(lis); err != nil {
@@ -157,4 +192,8 @@ func (l *Londo) shutdown(code int) {
 
 func (l *Londo) DbGetSubjectCommand() string {
 	return DbGetSubjectCommand
+}
+
+func (l *Londo) GRPCServerExchange() string {
+	return GRPCServerExchange
 }
