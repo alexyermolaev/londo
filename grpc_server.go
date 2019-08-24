@@ -2,7 +2,6 @@ package londo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/alexyermolaev/londo/londopb"
@@ -18,34 +17,37 @@ type GRPCServer struct {
 
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
 	subj := Subject{Subject: req.Subject}
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, errors.New("unable to get ip address from remote")
+
+	ip, err := g.getIPAddress(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	log.Infof("%s : get subject %s", p.Addr.String(), req.Subject)
+	log.Infof("%s : get subject %s", ip, req.Subject)
 
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, p.Addr.String()); err != nil {
-		return nil, err
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, ip); err != nil {
+		return nil, status.Errorf(
+			codes.FailedPrecondition,
+			fmt.Sprint("server error"))
 	}
 
 	log.Debug("creating consumer")
 	ch := make(chan Subject)
-	g.Londo.ConsumeGrpcReplies(p.Addr.String(), ch)
+	g.Londo.ConsumeGrpcReplies(ip, ch)
 
 	log.Debugf("request %s", req.Subject)
-	g.Londo.PublishDbCommand(DbGetSubjectCommand, &subj, p.Addr.String())
+	g.Londo.PublishDbCommand(DbGetSubjectCommand, &subj, ip)
 
 	rs := <-ch
 
 	if rs.Subject == "" {
-		log.Errorf("%s : code %d, resp %s", p.Addr.String(), codes.NotFound, req.Subject)
+		log.Errorf("%s : code %d, resp %s", ip, codes.NotFound, req.Subject)
 		return nil, status.Errorf(
 			codes.NotFound,
 			fmt.Sprintf("%s not found", req.Subject))
 	}
 
-	log.Infof("%s : resp %s", p.Addr.String(), rs.Subject)
+	log.Infof("%s : resp %s", ip, rs.Subject)
 	return &londopb.GetSubjectResponse{
 		Subject: &londopb.Subject{
 			Subject:     rs.Subject,
@@ -55,4 +57,14 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 			Targets:     rs.Targets,
 		},
 	}, nil
+}
+
+func (g *GRPCServer) getIPAddress(ctx context.Context) (string, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return "", status.Errorf(
+			codes.FailedPrecondition,
+			fmt.Sprint("failed to get incoming ip address"))
+	}
+	return GetIPAddr(p.Addr.String()), nil
 }
