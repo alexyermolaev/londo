@@ -104,6 +104,7 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 			stream.Send(res)
 
 		case <-done:
+			log.Infof("%s: close stream", ip)
 			return nil
 		}
 	}

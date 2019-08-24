@@ -106,7 +106,10 @@ func (l *Londo) PublishCollect(crtId int) *Londo {
 }
 
 func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo {
-	j, _ := json.Marshal(&s)
+	j, err := json.Marshal(&s)
+	if err != nil {
+		log.Errorf("error: %v", err)
+	}
 
 	if err := l.AMQP.Emit(
 		GRPCServerExchange,

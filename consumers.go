@@ -189,10 +189,13 @@ func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan stru
 			return err, false
 		}
 
+		if s.Subject != "" {
+			log.Infof("received %s", s.Subject)
+		}
 		ch <- s
 
-		// TODO: needs fixing
 		if d.Type == CloseChannelCmd {
+			log.Debug("received stop command")
 			if done != nil {
 				done <- struct{}{}
 			}
@@ -220,26 +223,23 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			subjs, err := l.Db.FineManySubjects(e.Target)
 			if err != nil {
 				log.Error(err)
-				return err, true
+				return err, false
 			}
 
-			log.Debug(subjs)
-
 			length := len(subjs)
-			var cmd string
 
 			for i := 0; i <= length; i++ {
 
 				if i == length {
-					log.Infof("done sending ")
-					break
+					var s Subject
+					l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
+					log.Info("sending close channel message...")
+				} else {
+					l.PublishReplySubject(&subjs[i], d.ReplyTo, "")
+					log.Infof("sent %s back to %s queue", subjs[i].Subject, d.ReplyTo)
 				}
 
-				l.PublishReplySubject(&subjs[i], d.ReplyTo, cmd)
-				log.Infof("sent %s back to %s queue", subjs[i].Subject, d.ReplyTo)
 			}
-
-			return err, true
 
 		case DbGetSubjectComd:
 			var e GetSubjectEvenet
