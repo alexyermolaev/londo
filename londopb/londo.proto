@@ -15,11 +15,16 @@ message GetSubjectRequest {
     string subject = 1;
 }
 
+message TargetRequest {
+    string target = 1;
+}
+
 message GetSubjectResponse {
     Subject subject = 1;
 }
 
 service CertService {
     rpc GetSubject (GetSubjectRequest) returns (GetSubjectResponse);
+    rpc GetSubjectsByTarget (TargetRequest) returns (stream GetSubjectResponse);
 }
 

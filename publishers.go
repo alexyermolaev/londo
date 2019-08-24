@@ -105,7 +105,7 @@ func (l *Londo) PublishCollect(crtId int) *Londo {
 	return l
 }
 
-func (l *Londo) PublishReplySubject(s *Subject, reply string) *Londo {
+func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo {
 	j, _ := json.Marshal(&s)
 
 	if err := l.AMQP.Emit(
@@ -113,6 +113,7 @@ func (l *Londo) PublishReplySubject(s *Subject, reply string) *Londo {
 		reply,
 		amqp.Publishing{
 			ContentType: ContentType,
+			Type:        cmd,
 			Body:        j,
 		}); err != nil {
 		log.Error(err)
@@ -127,10 +128,13 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 	var e interface{}
 
 	switch cmd {
-	case DbGetSubjectCommand:
+	case DbGetSubjectByTargetCmd:
+		e = GetSubjectByTarget{Target: s.Targets}
+
+	case DbGetSubjectComd:
 		e = GetSubjectEvenet{Subject: s.Subject}
 
-	case DbAddSubjCommand:
+	case DbAddSubjComd:
 		e = NewSubjectEvenet{
 			Subject:    s.Subject,
 			CSR:        s.CSR,
@@ -143,7 +147,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 
 		logMsg = "letting db know that " + s.Subject + " needs to be created."
 
-	case DbUpdateSubjCommand:
+	case DbUpdateSubjComd:
 		e = CompleteEnrollEvent{
 			CertID:      s.CertID,
 			Certificate: s.Certificate,

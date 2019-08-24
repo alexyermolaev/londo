@@ -2,7 +2,6 @@ package londo
 
 import (
 	"fmt"
-	"google.golang.org/grpc/reflection"
 	"net"
 	"os"
 	"os/signal"
@@ -11,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -28,11 +28,16 @@ const (
 
 	GRPCServerExchange = "grpc"
 
-	// Db Commands
-	DbDeleteSubjCommand = "subj.delete"
-	DbAddSubjCommand    = "subj.add"
-	DbUpdateSubjCommand = "subj.update"
-	DbGetSubjectCommand = "subj.get"
+	// Commands
+	// Db
+	DbDeleteSubjComd        = "subj.delete"
+	DbAddSubjComd           = "subj.add"
+	DbUpdateSubjComd        = "subj.update"
+	DbGetSubjectComd        = "subj.get"
+	DbGetSubjectByTargetCmd = "subj.get.taarget"
+
+	// Tell consumer to close channel
+	CloseChannelCmd = "stop"
 
 	ContentType = "application/json"
 )

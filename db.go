@@ -38,11 +38,11 @@ func NewDBConnection(c *Config) (*MongoDB, error) {
 	return m, nil
 }
 
-func (m MongoDB) Disconnect() error {
+func (m *MongoDB) Disconnect() error {
 	return m.client.Disconnect(m.context)
 }
 
-func (m MongoDB) FindAllSubjects() ([]*Subject, error) {
+func (m *MongoDB) FindAllSubjects() ([]*Subject, error) {
 	col := m.client.Database(m.Name).Collection("subjects")
 
 	cur, err := col.Find(m.context, m.client)
@@ -68,7 +68,7 @@ func (m MongoDB) FindAllSubjects() ([]*Subject, error) {
 	return results, nil
 }
 
-func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
+func (m *MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 	subjs, err := m.FindAllSubjects()
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (m MongoDB) FindExpiringSubjects(hours int) ([]*Subject, error) {
 	return res, nil
 }
 
-func (m MongoDB) InsertSubject(s *Subject) error {
+func (m *MongoDB) InsertSubject(s *Subject) error {
 	col := m.getSubjCollection()
 	s.ID = primitive.NewObjectID()
 
@@ -94,7 +94,7 @@ func (m MongoDB) InsertSubject(s *Subject) error {
 	return err
 }
 
-func (m MongoDB) DeleteSubject(hexId string, certid int) error {
+func (m *MongoDB) DeleteSubject(hexId string, certid int) error {
 	col := m.getSubjCollection()
 
 	id, err := primitive.ObjectIDFromHex(hexId)
@@ -115,7 +115,7 @@ func (m MongoDB) DeleteSubject(hexId string, certid int) error {
 	return err
 }
 
-func (m MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
+func (m *MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 	col := m.getSubjCollection()
 
 	filter := bson.M{"cert_id": certId}
@@ -135,7 +135,7 @@ func (m MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 	return nil
 }
 
-func (m MongoDB) FindSubject(s string) (Subject, error) {
+func (m *MongoDB) FindSubject(s string) (Subject, error) {
 	col := m.getSubjCollection()
 	filter := bson.M{"subject": s}
 	var res Subject
@@ -144,7 +144,28 @@ func (m MongoDB) FindSubject(s string) (Subject, error) {
 	return res, err
 }
 
-func (m MongoDB) getSubjCollection() *mongo.Collection {
+func (m *MongoDB) FineManySubjects(s []string) ([]Subject, error) {
+	col := m.getSubjCollection()
+	filter := bson.M{"targets": s}
+	var res []Subject
+
+	cur, err := col.Find(m.context, filter, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for cur.Next(m.context) {
+		var s Subject
+		if err := cur.Decode(&s); err != nil {
+			return nil, err
+		}
+		res = append(res, s)
+	}
+
+	return res, nil
+}
+
+func (m *MongoDB) getSubjCollection() *mongo.Collection {
 	return m.client.Database(m.Name).Collection("subjects")
 }
 

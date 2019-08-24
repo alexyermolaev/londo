@@ -30,6 +30,10 @@ type GetSubjectEvenet struct {
 	Subject string
 }
 
+type GetSubjectByTarget struct {
+	Target []string
+}
+
 type NewSubjectEvenet struct {
 	Subject    string
 	CSR        string

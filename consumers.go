@@ -79,7 +79,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
 
-		l.PublishDbCommand(DbAddSubjCommand, &s, "")
+		l.PublishDbCommand(DbAddSubjComd, &s, "")
 
 		return nil, false
 	})
@@ -133,7 +133,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			DbReplyQueue,
 			amqp.Publishing{
 				ContentType:   "application/json",
-				Type:          DbDeleteSubjCommand,
+				Type:          DbDeleteSubjComd,
 				CorrelationId: d.CorrelationId,
 				Body:          j,
 			}); err != nil {
@@ -174,7 +174,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}
 
 		s.Certificate = string(res.Body())
-		l.PublishDbCommand(DbUpdateSubjCommand, &s, "")
+		l.PublishDbCommand(DbUpdateSubjComd, &s, "")
 
 		return nil, false
 	})
@@ -182,7 +182,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject) *Londo {
+func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan struct{}) *Londo {
 	go l.AMQP.Consume(queue, func(d amqp.Delivery) (error, bool) {
 		var s Subject
 		if err := json.Unmarshal(d.Body, &s); err != nil {
@@ -191,7 +191,15 @@ func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject) *Londo {
 
 		ch <- s
 
-		return nil, true
+		// TODO: needs fixing
+		if d.Type == CloseChannelCmd {
+			if done != nil {
+				done <- struct{}{}
+			}
+			return nil, true
+		}
+
+		return nil, false
 	})
 
 	return l
@@ -201,7 +209,39 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) (error, bool) {
 
 		switch d.Type {
-		case DbGetSubjectCommand:
+		case DbGetSubjectByTargetCmd:
+			var e GetSubjectByTarget
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				return err, false
+			}
+
+			log.Infof("getting subjects for %s target(s)", e.Target)
+
+			subjs, err := l.Db.FineManySubjects(e.Target)
+			if err != nil {
+				log.Error(err)
+				return err, true
+			}
+
+			log.Debug(subjs)
+
+			length := len(subjs)
+			var cmd string
+
+			for i := 0; i <= length; i++ {
+
+				if i == length {
+					log.Infof("done sending ")
+					break
+				}
+
+				l.PublishReplySubject(&subjs[i], d.ReplyTo, cmd)
+				log.Infof("sent %s back to %s queue", subjs[i].Subject, d.ReplyTo)
+			}
+
+			return err, true
+
+		case DbGetSubjectComd:
 			var e GetSubjectEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err, false
@@ -209,15 +249,15 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			subj, err := l.Db.FindSubject(e.Subject)
 
-			l.PublishReplySubject(&subj, d.ReplyTo)
+			l.PublishReplySubject(&subj, d.ReplyTo, CloseChannelCmd)
 
 			if err != nil {
 				log.Error(errors.New("subject " + e.Subject + " not found"))
 			} else {
-				log.Infof("sent %s back to %s queue", e.Subject, d.ReplyTo)
+				log.Infof("sent %s back to %s queue", subj.Subject, d.ReplyTo)
 			}
 
-		case DbDeleteSubjCommand:
+		case DbDeleteSubjComd:
 			certId, err := l.deleteSubject(&d)
 			if err != nil {
 				return err, false
@@ -225,7 +265,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			log.Infof("certificate %d has been deleted", certId)
 
-		case DbAddSubjCommand:
+		case DbAddSubjComd:
 			subj, err := l.createNewSubject(&d)
 			if err != nil {
 				return err, false
@@ -233,7 +273,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			log.Infof("%s has been added", subj)
 
-		case DbUpdateSubjCommand:
+		case DbUpdateSubjComd:
 			certId, err := l.updateSubject(&d)
 			if err != nil {
 				return err, false
