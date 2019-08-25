@@ -17,7 +17,9 @@ type GRPCServer struct {
 }
 
 func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.GetSubjectResponse, error) {
-	panic("implement me")
+	return nil, status.Errorf(
+		codes.Unimplemented,
+		fmt.Sprintf("not implemented"))
 }
 
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
