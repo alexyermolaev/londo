@@ -3,7 +3,7 @@ module github.com/alexyermolaev/londo
 go 1.12
 
 require (
-	github.com/gbrlsnchs/jwt/v3 v3.0.0-beta.1 // indirect
+	github.com/gbrlsnchs/jwt/v3 v3.0.0-beta.1
 	github.com/go-resty/resty/v2 v2.0.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/protobuf v1.3.2

@@ -9,6 +9,13 @@ import (
 
 // TODO: need a way to validate config file
 
+type jwtParams struct {
+	Issuer       string `yaml:"iss"`
+	Audience     string `yaml:"aud"`
+	ExpiresAfter int    `yaml:"exp"`
+	Secret       string `yaml:"secret"`
+}
+
 type grpcConfig struct {
 	Port int `yaml:"port"`
 }
@@ -57,6 +64,7 @@ type Config struct {
 	GRPC       grpcConfig `yaml:"grpc"`
 	CertParams certParams `yaml:"cert_params"`
 	Debug      int        `yaml:"debug"`
+	JWT        jwtParams  `yaml:"jwt"`
 }
 
 func ReadConfig() (*Config, error) {
