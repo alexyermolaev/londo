@@ -9,18 +9,18 @@ import (
 
 // TODO: need a way to validate config file
 
-type jwtParams struct {
+type JWT struct {
 	Issuer       string `yaml:"iss"`
 	Audience     string `yaml:"aud"`
 	ExpiresAfter int    `yaml:"exp"`
 	Secret       string `yaml:"secret"`
 }
 
-type grpcConfig struct {
+type GRPC struct {
 	Port int `yaml:"port"`
 }
 
-type certParams struct {
+type CertParams struct {
 	Country             string `yaml:"country"`
 	Province            string `yaml:"province"`
 	Locality            string `yaml:"locality"`
@@ -41,7 +41,7 @@ type endpoints struct {
 	Revoke, Enroll, Collect string
 }
 
-type restApi struct {
+type Rest struct {
 	Url, Username, Password string
 	CustomerURI             string `yaml:"customer_uri"`
 	Endpoints               endpoints
@@ -52,19 +52,19 @@ type rabbitmq struct {
 	Port                                   int
 }
 
-type db struct {
+type DB struct {
 	Hostname, Username, Password, Name string
 	Port                               int
 }
 
 type Config struct {
-	DB         db         `yaml:"mongodb"`
-	AMQP       rabbitmq   `yaml:"amqp"`
-	RestAPI    restApi    `yaml:"sectigo"`
-	GRPC       grpcConfig `yaml:"grpc"`
-	CertParams certParams `yaml:"cert_params"`
-	Debug      int        `yaml:"debug"`
-	JWT        jwtParams  `yaml:"jwt"`
+	DB         `yaml:"mongodb"`
+	AMQP       rabbitmq `yaml:"amqp"`
+	Rest       `yaml:"sectigo"`
+	GRPC       `yaml:"grpc"`
+	CertParams `yaml:"cert_params"`
+	Debug      int `yaml:"debug"`
+	JWT        `yaml:"jwt"`
 }
 
 func ReadConfig() (*Config, error) {

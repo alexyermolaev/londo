@@ -51,9 +51,9 @@ func NewRestClient(c *Config) *RestAPI {
 func (r RestAPI) request() *resty.Request {
 	return r.Client.R().
 		SetHeader("Content-Type", contentType).
-		SetHeader("login", r.config.RestAPI.Username).
-		SetHeader("password", r.config.RestAPI.Password).
-		SetHeader("customerUri", r.config.RestAPI.CustomerURI)
+		SetHeader("login", r.config.Rest.Username).
+		SetHeader("password", r.config.Rest.Password).
+		SetHeader("customerUri", r.config.Rest.CustomerURI)
 }
 
 func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
@@ -87,21 +87,21 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 
 	return r.request().
 		SetBody(j).
-		Post(r.config.RestAPI.Url +
-			r.config.RestAPI.Endpoints.Enroll)
+		Post(r.config.Rest.Url +
+			r.config.Rest.Endpoints.Enroll)
 }
 
 func (r RestAPI) Revoke(certId int) (*resty.Response, error) {
 	return r.request().
-		Post(r.config.RestAPI.Url +
-			r.config.RestAPI.Endpoints.Revoke +
+		Post(r.config.Rest.Url +
+			r.config.Rest.Endpoints.Revoke +
 			"/" + strconv.Itoa(certId))
 }
 
 func (r RestAPI) Collect(certId int) (*resty.Response, error) {
 	return r.request().
-		Get(r.config.RestAPI.Url +
-			r.config.RestAPI.Endpoints.Collect +
+		Get(r.config.Rest.Url +
+			r.config.Rest.Endpoints.Collect +
 			"/" + strconv.Itoa(certId) + "/" + r.config.CertParams.FormatType)
 }
 

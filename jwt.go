@@ -15,14 +15,13 @@ var (
 	now = time.Now()
 )
 
-func IssueJWT(sub string) ([]byte, error) {
-	exp := time.Time(24 * Config.JWT.ExpiresAfter * time.Hour)
+func IssueJWT(sub string, c *Config) ([]byte, error) {
+	exp := time.Time(now.Add(24 * 30 * time.Hour))
 
 	pl := Payload{
 		Payload: jwt.Payload{
-			Issuer:         Config.JWT.Issuer,
+			Issuer:         c.JWT.Issuer,
 			Subject:        sub,
-			Audience:       jwt.Audience(Config.JWT.Audience),
 			ExpirationTime: jwt.NumericDate(exp),
 			IssuedAt:       jwt.NumericDate(now),
 			NotBefore:      jwt.NumericDate(now),
@@ -32,10 +31,13 @@ func IssueJWT(sub string) ([]byte, error) {
 	return jwt.Sign(pl, hs)
 }
 
-func Verify(token []byte) error {
+func Verify(token []byte, c *Config) error {
 	var (
-		expValid   = jwt.ExpirationTimeValidator(now)
-		pl         Payload
+		pl Payload
+
+		// TODO: Other validators
+		expValid = jwt.ExpirationTimeValidator(now)
+
 		valPayload = jwt.ValidatePayload(&pl.Payload, expValid)
 	)
 
