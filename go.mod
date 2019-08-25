@@ -13,6 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/tidwall/pretty v1.0.0 // indirect
+	github.com/urfave/cli v1.21.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.1.0
@@ -22,5 +23,6 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190825031127-d72b05d2b1b6 // indirect
 	google.golang.org/grpc v1.23.0
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 )
