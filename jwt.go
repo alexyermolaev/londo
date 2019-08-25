@@ -31,7 +31,7 @@ func IssueJWT(sub string, c *Config) ([]byte, error) {
 	return jwt.Sign(pl, hs)
 }
 
-func Verify(token []byte, c *Config) error {
+func VerifyJWT(token []byte, c *Config) (string, error) {
 	var (
 		pl Payload
 
@@ -43,8 +43,8 @@ func Verify(token []byte, c *Config) error {
 
 	_, err := jwt.Verify(token, hs, valPayload)
 	if err != nil {
-		return err
+		return pl.Subject, err
 	}
 
-	return nil
+	return pl.Subject, nil
 }
