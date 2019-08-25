@@ -3,6 +3,7 @@ package londo
 import (
 	log "github.com/sirupsen/logrus"
 	"strconv"
+	"sync"
 
 	"github.com/streadway/amqp"
 )
@@ -45,7 +46,11 @@ func (a *AMQP) Emit(exchange string, key string, msg amqp.Publishing) error {
 	return ch.Publish(exchange, key, false, false, msg)
 }
 
-func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) (error, bool)) {
+func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery) (error, bool)) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
 	log.Infof("consuming %s queue...", queue)
 
 	ch, err := a.connection.Channel()
@@ -69,7 +74,8 @@ func (a *AMQP) Consume(queue string, f func(d amqp.Delivery) (error, bool)) {
 			d.Ack(false)
 		}
 
-		if abort {
+		if abort == true {
+			log.Debug("ok")
 			break
 		}
 	}

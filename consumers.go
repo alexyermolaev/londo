@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -11,7 +12,7 @@ import (
 )
 
 func (l *Londo) ConsumeEnroll() *Londo {
-	go l.AMQP.Consume(EnrollQueue, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(EnrollQueue, nil, func(d amqp.Delivery) (error, bool) {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
@@ -95,7 +96,7 @@ approach.
 // TODO: need separate revoke consumer
 
 func (l *Londo) ConsumeRenew() *Londo {
-	go l.AMQP.Consume(RenewQueue, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) (error, bool) {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
@@ -153,7 +154,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 }
 
 func (l *Londo) ConsumeCollect() *Londo {
-	go l.AMQP.Consume(CollectQueue, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(CollectQueue, nil, func(d amqp.Delivery) (error, bool) {
 		// TODO: fix code duplication
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
@@ -182,8 +183,9 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan struct{}) *Londo {
-	go l.AMQP.Consume(queue, func(d amqp.Delivery) (error, bool) {
+func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan struct{}, wg *sync.WaitGroup) *Londo {
+	go l.AMQP.Consume(queue, wg, func(d amqp.Delivery) (error, bool) {
+
 		var s Subject
 		if err := json.Unmarshal(d.Body, &s); err != nil {
 			return err, false
@@ -209,7 +211,7 @@ func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan stru
 }
 
 func (l *Londo) ConsumeDbRPC() *Londo {
-	go l.AMQP.Consume(DbReplyQueue, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 
 		switch d.Type {
 		case DbGetSubjectByTargetCmd:
@@ -233,7 +235,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				var s Subject
 				l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
 				log.Infof("sent none -> %s queue", d.ReplyTo)
-				return nil, true
+				return nil, false
 			}
 
 			for i := 0; i <= length; i++ {

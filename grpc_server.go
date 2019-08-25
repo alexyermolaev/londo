@@ -3,6 +3,7 @@ package londo
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
@@ -34,7 +35,10 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 
 	log.Debug("creating consumer")
 	ch := make(chan Subject)
-	g.Londo.ConsumeGrpcReplies(ip, ch, nil)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	g.Londo.ConsumeGrpcReplies(ip, ch, nil, &wg)
 
 	log.Debugf("request %s", s)
 	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, ip)
@@ -47,6 +51,8 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 			codes.NotFound,
 			fmt.Sprintf("%s not found", s))
 	}
+
+	wg.Wait()
 
 	log.Infof("%s: resp %s", ip, rs.Subject)
 	return &londopb.GetSubjectResponse{
@@ -84,7 +90,10 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	ch := make(chan Subject)
 	done := make(chan struct{})
 
-	g.Londo.ConsumeGrpcReplies(ip, ch, done)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	g.Londo.ConsumeGrpcReplies(ip, ch, done, &wg)
 
 	log.Debugf("request subject by %s", t)
 	g.Londo.PublishDbCommand(DbGetSubjectByTargetCmd, &subj, ip)
@@ -92,9 +101,11 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	for {
 		select {
 		case rs := <-ch:
-
 			if rs.Subject == "" {
 				log.Errorf("%s: code %d", ip, codes.NotFound)
+
+				<-done
+				wg.Wait()
 				return status.Errorf(
 					codes.NotFound,
 					fmt.Sprintf("no subjects found"))
@@ -111,7 +122,8 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 			}
 			stream.Send(res)
 
-		case <-done:
+		case _ = <-done:
+			wg.Wait()
 			log.Infof("%s: close stream", ip)
 			return nil
 		}
