@@ -16,11 +16,15 @@ type GRPCServer struct {
 	Londo *Londo
 }
 
+func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.GetSubjectResponse, error) {
+	panic("implement me")
+}
+
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
 	s := req.GetSubject()
 	subj := Subject{Subject: s}
 
-	ip, err := g.getIPAddress(ctx)
+	ip, addr, err := g.getIPAddress(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +42,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(ip, ch, nil, &wg)
+	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Debugf("request %s", s)
 	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, ip)
@@ -73,7 +77,7 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	tarr = append(tarr, t)
 
 	subj := Subject{Targets: tarr}
-	ip, err := g.getIPAddress(stream.Context())
+	ip, addr, err := g.getIPAddress(stream.Context())
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,7 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(ip, ch, done, &wg)
+	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
 	log.Debugf("request subject by %s", t)
 	g.Londo.PublishDbCommand(DbGetSubjectByTargetCmd, &subj, ip)
@@ -130,13 +134,13 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	}
 }
 
-func (g *GRPCServer) getIPAddress(ctx context.Context) (string, error) {
+func (g *GRPCServer) getIPAddress(ctx context.Context) (string, string, error) {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		return "", status.Errorf(
+		return "", "", status.Errorf(
 			codes.FailedPrecondition,
 			fmt.Sprint("failed to get incoming ip address"))
 	}
 
-	return GetIPAddr(p.Addr.String()), nil
+	return GetIPAddr(p.Addr.String()), p.Addr.String(), nil
 }

@@ -74,8 +74,7 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 			d.Ack(false)
 		}
 
-		if abort == true {
-			log.Debug("ok")
+		if abort {
 			break
 		}
 	}

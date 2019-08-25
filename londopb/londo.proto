@@ -23,8 +23,21 @@ message GetSubjectResponse {
     Subject subject = 1;
 }
 
+// New Subject
+message NewSubject {
+    string subject = 1;
+    repeated string alt_names = 2;
+    repeated string targets = 3;
+}
+
+message AddNewSubjectRequest {
+    NewSubject subject = 1;
+}
+
 service CertService {
     rpc GetSubject (GetSubjectRequest) returns (GetSubjectResponse);
     rpc GetSubjectsByTarget (TargetRequest) returns (stream GetSubjectResponse);
+
+    rpc AddNewSubject (AddNewSubjectRequest) returns (GetSubjectResponse);
 }
 
