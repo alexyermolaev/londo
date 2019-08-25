@@ -40,8 +40,11 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	}
 
 	log.Debug("creating consumer")
-	ch := make(chan Subject)
-	var wg sync.WaitGroup
+
+	var (
+		ch = make(chan Subject)
+		wg sync.WaitGroup
+	)
 
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
@@ -109,9 +112,12 @@ func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr stri
 	}
 
 	log.Debug("creating consumer")
-	ch := make(chan Subject)
-	done := make(chan struct{})
-	var wg sync.WaitGroup
+
+	var (
+		ch   = make(chan Subject)
+		done = make(chan struct{})
+		wg   sync.WaitGroup
+	)
 
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
