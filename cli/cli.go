@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"sort"
 
@@ -89,7 +90,23 @@ func init() {
 }
 
 func Token(c *cli.Context) error {
-	println(c.Args().First())
+	arg := c.Args().First()
+
+	if arg == "" {
+		return cli.NewExitError("must specify an argument", 1)
+	}
+
+	cfg, err := londo.ReadConfig()
+	if err != nil {
+		return cli.NewExitError("cannot read config", 1)
+	}
+
+	t, err := londo.IssueJWT(arg, cfg)
+	if err != nil {
+		return cli.NewExitError("cannot issue a token", 1)
+	}
+
+	fmt.Printf("new token: %s\n", string(t))
 	return nil
 }
 
