@@ -16,7 +16,10 @@ message GetSubjectRequest {
 }
 
 message TargetRequest {
-    string target = 1;
+    repeated string target = 1;
+}
+
+message ForTargetRequest {
 }
 
 message GetSubjectResponse {
@@ -37,6 +40,9 @@ message AddNewSubjectRequest {
 service CertService {
     rpc GetSubject (GetSubjectRequest) returns (GetSubjectResponse);
     rpc GetSubjectsByTarget (TargetRequest) returns (stream GetSubjectResponse);
+
+    // Response is determined by requester's IP address
+    rpc GetSubjectForTarget (ForTargetRequest) returns (stream GetSubjectResponse);
 
     rpc AddNewSubject (AddNewSubjectRequest) returns (GetSubjectResponse);
 }

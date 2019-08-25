@@ -72,21 +72,37 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	}, nil
 }
 
-func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
-	t := req.GetTarget()
-
-	var tarr []string
-	tarr = append(tarr, t)
-
-	subj := Subject{Targets: tarr}
+func (g *GRPCServer) GetSubjectForTarget(req *londopb.ForTargetRequest, stream londopb.CertService_GetSubjectForTargetServer) error {
 	ip, addr, err := g.getIPAddress(stream.Context())
 	if err != nil {
 		return err
 	}
 
-	log.Infof("%s : get subjects by %s", ip, t)
+	var targets []string
+	targets = append(targets, ip)
 
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, ip); err != nil {
+	log.Infof("%s : get subjects by %s", ip, ip)
+
+	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
+}
+
+func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
+	targets := req.GetTarget()
+
+	ip, addr, err := g.getIPAddress(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	log.Infof("%s : get subjects by %s", ip, targets)
+
+	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
+}
+
+func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr string, stream londopb.CertService_GetSubjectsByTargetServer) error {
+	subj := Subject{Targets: targets}
+
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return status.Errorf(
 			codes.FailedPrecondition,
 			fmt.Sprint("server error"))
@@ -95,14 +111,13 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	log.Debug("creating consumer")
 	ch := make(chan Subject)
 	done := make(chan struct{})
-
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
-	log.Debugf("request subject by %s", t)
-	g.Londo.PublishDbCommand(DbGetSubjectByTargetCmd, &subj, ip)
+	log.Debugf("request subject by %s", targets)
+	g.Londo.PublishDbCommand(DbGetSubjectByTargetCmd, &subj, addr)
 
 	for {
 		select {
