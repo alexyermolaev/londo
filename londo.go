@@ -1,7 +1,6 @@
 package londo
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -165,29 +164,12 @@ func (l *Londo) GRPCServer() *Londo {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	fail(err)
 
-	// TODO: needs improvemnt
-	authi := func(ctx context.Context) (context.Context, error) {
-		token, err := grpc_auth.AuthFromMD(ctx, "bearer")
-		if err != nil {
-			log.Debug("no token")
-			return nil, err
-		}
-
-		if _, err = VerifyJWT([]byte(token), cfg); err != nil {
-			log.Warn("can't auth remote")
-			return ctx, err
-		}
-
-		log.Info("connected")
-		return ctx, nil
-	}
-
 	opts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_auth.StreamServerInterceptor(authi),
+			grpc_auth.StreamServerInterceptor(AuthIntercept),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_auth.UnaryServerInterceptor(authi),
+			grpc_auth.UnaryServerInterceptor(AuthIntercept),
 		)),
 	}
 

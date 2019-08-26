@@ -33,7 +33,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 
 	log.Infof("%s: get subject %s", ip, s)
 
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, ip); err != nil {
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return nil, status.Errorf(
 			codes.FailedPrecondition,
 			fmt.Sprint("server error"))
@@ -50,7 +50,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Debugf("request %s", s)
-	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, ip)
+	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
 
 	rs := <-ch
 
@@ -166,7 +166,7 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	if err != nil {
-		log.Debug("%s: no token present", ip)
+		log.Errorf("%s: no token present", ip)
 		return nil, err
 	}
 

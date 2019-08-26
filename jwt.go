@@ -41,7 +41,7 @@ func VerifyJWT(token []byte, c *Config) (string, error) {
 		valPayload = jwt.ValidatePayload(&pl.Payload, expValid)
 	)
 
-	_, err := jwt.Verify(token, hs, valPayload)
+	_, err := jwt.Verify(token, hs, &pl, valPayload)
 	if err != nil {
 		return pl.Subject, err
 	}
