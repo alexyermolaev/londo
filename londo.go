@@ -45,20 +45,41 @@ const (
 	ContentType = "application/json"
 )
 
+var (
+	cfg *Config
+	err error
+)
+
+func init() {
+
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+
+	log.Info("reading configuration")
+	cfg, err = ReadConfig()
+	if err != nil {
+		log.Fatal("cannot read config")
+		os.Exit(1)
+	}
+	if cfg.Debug == 1 {
+		log.Warn("debugging is on")
+		log.SetLevel(log.DebugLevel)
+	}
+}
+
 type Londo struct {
 	Name       string
 	Db         *MongoDB
 	AMQP       *AMQP
 	GRPC       *GRPCServer
-	Config     *Config
 	RestClient *RestAPI
 }
 
 func (l *Londo) AMQPConnection() *Londo {
-	var err error
 
 	log.Info("Connecting to RabbitMQ...")
-	l.AMQP, err = NewMQConnection(l.Config, l.Db)
+	l.AMQP, err = NewMQConnection(cfg, l.Db)
 	fail(err)
 
 	return l
@@ -122,24 +143,16 @@ func (l *Londo) DbService() *Londo {
 	var err error
 
 	log.Info("Connecting to the database...")
-	l.Db, err = NewDBConnection(l.Config)
+	l.Db, err = NewDBConnection(cfg)
 	fail(err)
 
 	return l
 }
 
 func S(name string) *Londo {
-	ConfigureLogging(log.DebugLevel)
-
 	l := &Londo{
 		Name: name,
 	}
-
-	var err error
-
-	log.Info("Reading configuration...")
-	l.Config, err = ReadConfig()
-	fail(err)
 
 	log.Info("Starting " + l.Name + " service...")
 
@@ -149,7 +162,7 @@ func S(name string) *Londo {
 func (l *Londo) GRPCServer() *Londo {
 	log.Info("initializing grpc...")
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", l.Config.GRPC.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	fail(err)
 
 	// TODO: needs improvemnt
@@ -160,7 +173,7 @@ func (l *Londo) GRPCServer() *Londo {
 			return nil, err
 		}
 
-		if _, err = VerifyJWT([]byte(token), l.Config); err != nil {
+		if _, err = VerifyJWT([]byte(token), cfg); err != nil {
 			log.Warn("can't auth remote")
 			return ctx, err
 		}
@@ -186,7 +199,7 @@ func (l *Londo) GRPCServer() *Londo {
 	reflection.Register(srv)
 
 	go func() {
-		log.Infof("server is running on port %d", l.Config.GRPC.Port)
+		log.Infof("server is running on port %d", cfg.GRPC.Port)
 		if err := srv.Serve(lis); err != nil {
 			fail(err)
 		}
@@ -196,11 +209,6 @@ func (l *Londo) GRPCServer() *Londo {
 }
 
 func (l *Londo) Run() {
-	//if l.Config.Debug == 1 {
-	//	ConfigureLogging(log.DebugLevel)
-	//	log.Info("enabled debug level")
-	//}
-
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 
@@ -210,7 +218,7 @@ func (l *Londo) Run() {
 }
 
 func (l *Londo) RestAPIClient() *Londo {
-	l.RestClient = NewRestClient(l.Config)
+	l.RestClient = NewRestClient(cfg)
 	return l
 }
 

@@ -19,7 +19,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err, false
 		}
 
-		key, err := GeneratePrivateKey(l.Config.CertParams.BitSize)
+		key, err := GeneratePrivateKey(cfg.CertParams.BitSize)
 		if err != nil {
 			err = d.Reject(false)
 			return err, false
@@ -31,7 +31,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err, false
 		}
 
-		csr, err := GenerateCSR(key, s.Subject, l.Config)
+		csr, err := GenerateCSR(key, s.Subject, cfg)
 		if err != nil {
 			err = d.Reject(false)
 			return err, false
