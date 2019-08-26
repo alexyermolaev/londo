@@ -3,8 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/alexyermolaev/londo"
 	"github.com/alexyermolaev/londo/londopb"
@@ -20,6 +22,8 @@ const (
 )
 
 var (
+	token string
+
 	authors = cli.Author{
 		Name: "Alex Yermolaev",
 	}
@@ -91,6 +95,12 @@ func init() {
 	app.EnableBashCompletion = true
 
 	sort.Sort(cli.CommandsByName(app.Commands))
+
+	token, err = getToken()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 type authCreds struct {
@@ -109,12 +119,9 @@ func (a *authCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 
 func GetSubject(c *cli.Context) error {
 	arg := c.Args().First()
-
 	if arg == "" {
 		return argErr
 	}
-
-	token := ""
 
 	auth := &authCreds{
 		token: token,
@@ -186,4 +193,21 @@ func Token(c *cli.Context) error {
 
 func Run() error {
 	return app.Run(os.Args)
+}
+
+func getToken() (string, error) {
+	p := "config/token"
+
+	f, err := os.Open(p)
+	defer f.Close()
+	if err != nil {
+		return "", err
+	}
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(string(b), "\n"), nil
 }
