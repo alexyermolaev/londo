@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"sort"
@@ -36,10 +37,17 @@ var (
 		Action:  Token,
 	}
 
+	tgtCmd = cli.Command{
+		Name:    "target",
+		Aliases: []string{"tt"},
+		Usage:   "get all subjects for distribution target",
+		Action:  GetForTarget,
+	}
+
 	subjCmd = cli.Command{
 		Name:    "subject",
 		Aliases: []string{"s"},
-		Usage:   "provides functionality to add, view, delete and edit subjects",
+		Usage:   "provides functionality to add, view and delete subjects",
 		Subcommands: []cli.Command{
 			addSubjCmd,
 			delSubjCmd,
@@ -90,7 +98,7 @@ func init() {
 	app.Copyright = copyright
 	app.Authors = []cli.Author{authors}
 
-	app.Commands = []cli.Command{subjCmd, tokenCmd}
+	app.Commands = []cli.Command{subjCmd, tokenCmd, tgtCmd}
 
 	app.EnableBashCompletion = true
 
@@ -115,6 +123,55 @@ func (a *authCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 	return map[string]string{
 		"authorization": "bearer " + a.token,
 	}, nil
+}
+
+func GetForTarget(c *cli.Context) error {
+	arg := c.Args().First()
+	if arg == "" {
+		return argErr
+	}
+
+	auth := &authCreds{
+		token: token,
+	}
+
+	// TODO: needs refactor
+	conn, err := grpc.Dial("127.0.0.1:1337",
+		grpc.WithInsecure(),
+		grpc.WithPerRPCCredentials(auth))
+	if err != nil {
+		return cli.NewExitError("unable to connect.", 127)
+	}
+	defer conn.Close()
+
+	client := londopb.NewCertServiceClient(conn)
+
+	var targets []string
+	targets = append(targets, arg)
+
+	req := &londopb.TargetRequest{
+		Target: targets,
+	}
+
+	stream, err := client.GetSubjectsByTarget(context.Background(), req)
+	if err != nil {
+		fmt.Println(err.Error())
+		return cli.NewExitError("bad response", 1)
+	}
+
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Printf("error while reading stream: %v", err)
+			os.Exit(2)
+		}
+		fmt.Println(msg.GetSubject())
+	}
+
+	return nil
 }
 
 func GetSubject(c *cli.Context) error {
@@ -143,7 +200,7 @@ func GetSubject(c *cli.Context) error {
 
 	res, err := client.GetSubject(context.Background(), req)
 	if err != nil {
-		println(err.Error())
+		fmt.Println(err.Error())
 		return cli.NewExitError("bad response", 1)
 	}
 
