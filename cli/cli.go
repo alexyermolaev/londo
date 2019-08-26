@@ -23,7 +23,18 @@ var (
 	}
 
 	argErr = cli.NewExitError("must specify an argument", 1)
+
+	token string
+	err   error
 )
+
+func init() {
+	token, err = GetToken()
+	if err != nil {
+		fmt.Println("cannot read token")
+		os.Exit(1)
+	}
+}
 
 func GetCopyright() string {
 	return copyright
@@ -49,11 +60,9 @@ func (a *authCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 
 func GetForTarget(c *cli.Context) error {
 	arg := c.Args().First()
-	if arg == "" {
-		return argErr
-	}
-
-	var token string
+	// if arg == "" {
+	// 	return argErr
+	// }
 
 	auth := &authCreds{
 		token: token,
@@ -73,26 +82,49 @@ func GetForTarget(c *cli.Context) error {
 	var targets []string
 	targets = append(targets, arg)
 
-	req := &londopb.TargetRequest{
-		Target: targets,
-	}
-
-	stream, err := client.GetSubjectsByTarget(context.Background(), req)
-	if err != nil {
-		fmt.Println(err.Error())
-		return cli.NewExitError("bad response", 1)
-	}
-
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			break
+	// TODO: ugly need refactoring
+	if arg != "" {
+		req := &londopb.TargetRequest{
+			Target: targets,
 		}
+
+		stream, err := client.GetSubjectsByTarget(context.Background(), req)
 		if err != nil {
-			fmt.Printf("error while reading stream: %v", err)
-			os.Exit(2)
+			return cli.NewExitError(fmt.Sprintf("%v", err), 1)
 		}
-		fmt.Println(msg.GetSubject())
+
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				fmt.Printf("error while reading stream: %v", err)
+				os.Exit(2)
+			}
+
+			fmt.Println(msg.GetSubject())
+		}
+	} else {
+		req := &londopb.ForTargetRequest{}
+
+		stream, err := client.GetSubjectForTarget(context.Background(), req)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("%v", err), 1)
+		}
+
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				fmt.Printf("error while reading stream: %v", err)
+				os.Exit(2)
+			}
+
+			fmt.Println(msg.GetSubject())
+		}
 	}
 
 	return nil
@@ -103,8 +135,6 @@ func GetSubject(c *cli.Context) error {
 	if arg == "" {
 		return argErr
 	}
-
-	var token string
 
 	auth := &authCreds{
 		token: token,

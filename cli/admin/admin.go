@@ -68,19 +68,11 @@ var (
 	app *cli.App
 
 	argErr = cli.NewExitError("must specify an argument", 1)
+
+	err error
 )
 
 func init() {
-	c, err := londo.ReadConfig()
-	if err != nil {
-		os.Exit(1)
-	}
-
-	_, err = londo.IssueJWT("0.0.0.0", c)
-	if err != nil {
-		os.Exit(1)
-	}
-
 	app = cli.NewApp()
 
 	app.Name = name
