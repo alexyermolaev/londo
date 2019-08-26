@@ -4,11 +4,9 @@ Londo is a Certificate Management system. Primarily, it is designed to work with
 
 ## Requirements
 
-![Golang](https://golang.org/lib/godoc/images/go-logo-blue.svg)
-
-![RabbitMQ](https://www.rabbitmq.com/img/RabbitMQ-logo.svg)
-
-MongoDB
+Go 1.12+
+RabbitMQ 3.7+
+MongoDB 4.0+
 
 ## Installation
 
