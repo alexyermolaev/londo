@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/alexyermolaev/londo/cli"
+	"github.com/alexyermolaev/londo/cli/admin"
 )
 
 func main() {
-	cli.Run()
+	admin.Run()
 }
