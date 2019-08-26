@@ -32,7 +32,7 @@ var (
 	subjCmd = cli.Command{
 		Name:    "subject",
 		Aliases: []string{"s"},
-		Usage:   "subject management",
+		Usage:   "provides functionality to add, view, delete and edit subjects",
 		Subcommands: []cli.Command{
 			addSubjCmd,
 			delSubjCmd,
@@ -62,7 +62,6 @@ var (
 )
 
 func init() {
-
 	c, err := londo.ReadConfig()
 	if err != nil {
 		os.Exit(1)
@@ -86,7 +85,6 @@ func init() {
 	app.EnableBashCompletion = true
 
 	sort.Sort(cli.CommandsByName(app.Commands))
-
 }
 
 func Token(c *cli.Context) error {
@@ -106,7 +104,7 @@ func Token(c *cli.Context) error {
 		return cli.NewExitError("cannot issue a token", 1)
 	}
 
-	fmt.Printf("new token: %s\n", string(t))
+	fmt.Printf("sub: %s token: %s\n", arg, string(t))
 	return nil
 }
 

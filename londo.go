@@ -1,12 +1,15 @@
 package londo
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 
 	"github.com/alexyermolaev/londo/londopb"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
@@ -149,7 +152,32 @@ func (l *Londo) GRPCServer() *Londo {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", l.Config.GRPC.Port))
 	fail(err)
 
-	opts := []grpc.ServerOption{}
+	// TODO: needs improvemnt
+	authi := func(ctx context.Context) (context.Context, error) {
+		token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+		if err != nil {
+			log.Debug("no token")
+			return nil, err
+		}
+
+		if _, err = VerifyJWT([]byte(token), l.Config); err != nil {
+			log.Warn("can't auth remote")
+			return ctx, err
+		}
+
+		log.Info("connected")
+		return ctx, nil
+	}
+
+	opts := []grpc.ServerOption{
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpc_auth.StreamServerInterceptor(authi),
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_auth.UnaryServerInterceptor(authi),
+		)),
+	}
+
 	srv := grpc.NewServer(opts...)
 	londopb.RegisterCertServiceServer(srv, &GRPCServer{
 		Londo: l,
