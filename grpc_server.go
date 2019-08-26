@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/alexyermolaev/londo/londopb"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -26,7 +26,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	s := req.GetSubject()
 	subj := Subject{Subject: s}
 
-	ip, addr, err := g.getIPAddress(ctx)
+	ip, addr, err := ParseIPAddr(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 }
 
 func (g *GRPCServer) GetSubjectForTarget(req *londopb.ForTargetRequest, stream londopb.CertService_GetSubjectForTargetServer) error {
-	ip, addr, err := g.getIPAddress(stream.Context())
+	ip, addr, err := ParseIPAddr(stream.Context())
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (g *GRPCServer) GetSubjectForTarget(req *londopb.ForTargetRequest, stream l
 func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
 	targets := req.GetTarget()
 
-	ip, addr, err := g.getIPAddress(stream.Context())
+	ip, addr, err := ParseIPAddr(stream.Context())
 	if err != nil {
 		return err
 	}
@@ -157,13 +157,29 @@ func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr stri
 	}
 }
 
-func (g *GRPCServer) getIPAddress(ctx context.Context) (string, string, error) {
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		return "", "", status.Errorf(
-			codes.FailedPrecondition,
-			fmt.Sprint("failed to get incoming ip address"))
+func AuthIntercept(ctx context.Context) (context.Context, error) {
+	ip, _, err := ParseIPAddr(ctx)
+	if err != nil {
+		log.Error("XXX.XXX.XXX.XXX: unable to parse incoming ip address")
+		return nil, err
 	}
 
-	return GetIPAddr(p.Addr.String()), p.Addr.String(), nil
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	if err != nil {
+		log.Debug("%s: no token present", ip)
+		return nil, err
+	}
+
+	sub, err := VerifyJWT([]byte(token), cfg)
+	if err != nil {
+		log.Warnf("%s: authentication failed.", ip)
+		return ctx, err
+	}
+
+	if sub != ip {
+		log.Warnf("%s: != %s", ip, sub)
+	}
+
+	log.Info("connected")
+	return ctx, nil
 }
