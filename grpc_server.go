@@ -42,13 +42,8 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 }
 
 func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.GetSubjectResponse, error) {
-	return nil, status.Errorf(
-		codes.Unimplemented,
-		fmt.Sprintf("not implemented"))
-}
-
-func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
-	s := req.GetSubject()
+	// FIXME: code duplication
+	s := req.GetSubject().Subject
 	subj := Subject{Subject: s}
 
 	ip, addr, err := ParseIPAddr(ctx)
@@ -56,7 +51,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 		return nil, err
 	}
 
-	log.Infof("%s: get subject %s", ip, s)
+	log.Infof("%s: get sub %s", ip, s)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return nil, status.Errorf(
@@ -74,7 +69,51 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
-	log.Debugf("request %s", s)
+	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
+	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
+
+	rs := <-ch
+
+	if rs.Subject != "" {
+		log.Errorf("%s: code %d, resp %s", ip, codes.AlreadyExists, s)
+		return nil, status.Errorf(
+			codes.NotFound,
+			fmt.Sprintf("%s already exists", s))
+	}
+
+	return nil, status.Errorf(
+		codes.Unimplemented,
+		fmt.Sprintf("not implemented"))
+}
+
+func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
+	s := req.GetSubject()
+	subj := Subject{Subject: s}
+
+	ip, addr, err := ParseIPAddr(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("%s: get sub %s", ip, s)
+
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
+		return nil, status.Errorf(
+			codes.FailedPrecondition,
+			fmt.Sprint("server error"))
+	}
+
+	log.Debug("creating consumer")
+
+	var (
+		ch = make(chan Subject)
+		wg sync.WaitGroup
+	)
+
+	wg.Add(1)
+	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
+
+	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
 	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
 
 	rs := <-ch
