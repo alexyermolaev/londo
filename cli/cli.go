@@ -58,84 +58,104 @@ func (a *authCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 	}, nil
 }
 
-func GetForTarget(c *cli.Context) error {
+func GetForTarget(c *cli.Context) {
 	arg := c.Args().First()
-	// if arg == "" {
-	// 	return argErr
-	// }
-
-	auth := &authCreds{
-		token: token,
-	}
-
-	// TODO: needs refactor
-	conn, err := grpc.Dial("127.0.0.1:1337",
-		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(auth))
-	if err != nil {
-		return cli.NewExitError("unable to connect.", 127)
-	}
-	defer conn.Close()
-
-	client := londopb.NewCertServiceClient(conn)
-
 	var targets []string
 	targets = append(targets, arg)
 
-	// TODO: ugly need refactoring
-	if arg != "" {
-		req := &londopb.TargetRequest{
-			Target: targets,
-		}
-
-		stream, err := client.GetSubjectsByTarget(context.Background(), req)
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%v", err), 1)
-		}
-
-		for {
-			msg, err := stream.Recv()
-			if err == io.EOF {
-				break
+	prepareReq(func(client londopb.CertServiceClient) error {
+		// TODO: need refactor
+		if arg != "" {
+			req := &londopb.TargetRequest{
+				Target: targets,
 			}
+
+			stream, err := client.GetSubjectsByTarget(context.Background(), req)
 			if err != nil {
-				fmt.Printf("error while reading stream: %v", err)
-				os.Exit(2)
+				return cli.NewExitError(fmt.Sprintf("%v", err), 1)
 			}
 
-			fmt.Println(msg.GetSubject())
-		}
-	} else {
-		req := &londopb.ForTargetRequest{}
+			for {
+				msg, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					fmt.Printf("error while reading stream: %v", err)
+					os.Exit(2)
+				}
 
-		stream, err := client.GetSubjectForTarget(context.Background(), req)
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%v", err), 1)
-		}
-
-		for {
-			msg, err := stream.Recv()
-			if err == io.EOF {
-				break
+				fmt.Println(msg.GetSubject())
 			}
+		} else {
+			req := &londopb.ForTargetRequest{}
+
+			stream, err := client.GetSubjectForTarget(context.Background(), req)
 			if err != nil {
-				fmt.Printf("error while reading stream: %v", err)
-				os.Exit(2)
+				return cli.NewExitError(fmt.Sprintf("%v", err), 1)
 			}
 
-			fmt.Println(msg.GetSubject())
-		}
-	}
+			for {
+				msg, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					fmt.Printf("error while reading stream: %v", err)
+					os.Exit(2)
+				}
 
-	return nil
+				fmt.Println(msg.GetSubject())
+			}
+		}
+
+		return nil
+	})
 }
 
-func GetSubject(c *cli.Context) error {
+func GetSubject(c *cli.Context) {
 	arg := c.Args().First()
-	if arg == "" {
-		return argErr
-	}
 
+	prepareReq(func(client londopb.CertServiceClient) error {
+		if arg == "" {
+			return argErr
+		}
+
+		req := &londopb.GetSubjectRequest{
+			Subject: arg,
+		}
+
+		res, err := client.GetSubject(context.Background(), req)
+		if err != nil {
+			fmt.Println(err.Error())
+			return cli.NewExitError("bad response", 1)
+		}
+
+		fmt.Printf("cn: %s\n\n", res.Subject.Subject)
+
+		fmt.Println("certificate:")
+		fmt.Printf("%s\n", res.Subject.Certificate)
+
+		fmt.Println("private key:")
+		fmt.Printf("%s\n", res.Subject.PrivateKey)
+
+		fmt.Print("alt names (DNSNames): ")
+		for _, alt := range res.Subject.AltNames {
+			fmt.Printf("%s ", alt)
+		}
+		fmt.Print("\n\n")
+
+		fmt.Print("targets: ")
+		for _, alt := range res.Subject.Targets {
+			fmt.Printf("%s ", alt)
+		}
+		fmt.Print("\n\n")
+
+		return nil
+	})
+}
+
+func prepareReq(f func(londopb.CertServiceClient) error) error {
 	auth := &authCreds{
 		token: token,
 	}
@@ -149,43 +169,8 @@ func GetSubject(c *cli.Context) error {
 	defer conn.Close()
 
 	client := londopb.NewCertServiceClient(conn)
-
-	req := &londopb.GetSubjectRequest{
-		Subject: arg,
-	}
-
-	res, err := client.GetSubject(context.Background(), req)
-	if err != nil {
-		fmt.Println(err.Error())
-		return cli.NewExitError("bad response", 1)
-	}
-
-	fmt.Printf("cn: %s\n\n", res.Subject.Subject)
-
-	fmt.Println("certificate:")
-	fmt.Printf("%s\n", res.Subject.Certificate)
-
-	fmt.Println("private key:")
-	fmt.Printf("%s\n", res.Subject.PrivateKey)
-
-	fmt.Print("alt names (DNSNames): ")
-	for _, alt := range res.Subject.AltNames {
-		fmt.Printf("%s ", alt)
-	}
-	fmt.Print("\n\n")
-
-	fmt.Print("targets: ")
-	for _, alt := range res.Subject.Targets {
-		fmt.Printf("%s ", alt)
-	}
-	fmt.Print("\n\n")
-
-	return nil
+	return f(client)
 }
-
-// func Run() error {
-// 	return app.Run(os.Args)
-// }
 
 func GetToken() (string, error) {
 	p := "config/token"
