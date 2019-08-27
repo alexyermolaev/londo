@@ -153,6 +153,29 @@ func GetForTarget(c *cli.Context) {
 	})
 }
 
+func AddSubject(c *cli.Context) {
+	arg := c.Args().First()
+
+	DoRequest(c, func(client londopb.CertServiceClient) error {
+		if arg == "" {
+			return argErr
+		}
+
+		req := &londopb.AddNewSubjectRequest{
+			Subject: &londopb.NewSubject{
+				Subject: arg,
+			},
+		}
+
+		_, err := client.AddNewSubject(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return nil
+	})
+}
+
 func GetSubject(c *cli.Context) {
 	arg := c.Args().First()
 
@@ -167,8 +190,7 @@ func GetSubject(c *cli.Context) {
 
 		res, err := client.GetSubject(context.Background(), req)
 		if err != nil {
-			fmt.Println(err.Error())
-			return cli.NewExitError("bad response", 1)
+			log.Fatal(err)
 		}
 
 		fmt.Printf("cn: %s\n\n", res.Subject.Subject)
@@ -200,7 +222,7 @@ func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 		token: token.String,
 	}
 
-	log.Infof("connecting to %s", server.String)
+	log.Infof("dialing %s", server.String)
 	conn, err := grpc.Dial(server.String,
 		grpc.WithInsecure(),
 		grpc.WithPerRPCCredentials(auth))

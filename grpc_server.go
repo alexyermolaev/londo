@@ -77,7 +77,7 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 	if rs.Subject != "" {
 		log.Errorf("%s: code %d, resp %s", ip, codes.AlreadyExists, s)
 		return nil, status.Errorf(
-			codes.NotFound,
+			codes.AlreadyExists,
 			fmt.Sprintf("%s already exists", s))
 	}
 

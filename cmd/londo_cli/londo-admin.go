@@ -45,6 +45,7 @@ var (
 		Name:    "add",
 		Aliases: []string{"a"},
 		Usage:   "add new subject",
+		Action:  londocli.AddSubject,
 	}
 
 	delSubjCmd = cli.Command{
@@ -68,6 +69,7 @@ var (
 )
 
 func init() {
+	server := londocli.NewServer()
 	_ = londocli.NewToken()
 
 	app = cli.NewApp()
@@ -79,6 +81,16 @@ func init() {
 	app.Authors = []cli.Author{londocli.GetAuthors()}
 
 	app.Commands = []cli.Command{subjCmd, tokenCmd, tgtCmd}
+
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:        "server, s",
+			Usage:       "connect to server `SERVER:PORT`",
+			Destination: &server.String,
+			Value:       "127.0.0.1:1337",
+			EnvVar:      "LONDO_SERVER",
+		},
+	}
 
 	app.EnableBashCompletion = true
 

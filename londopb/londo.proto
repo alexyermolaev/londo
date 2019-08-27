@@ -29,7 +29,6 @@ message GetSubjectResponse {
 message NewSubject {
     string subject = 1;
     repeated string alt_names = 2;
-    repeated string targets = 3;
 }
 
 message AddNewSubjectRequest {
