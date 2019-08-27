@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	ljwt "github.com/alexyermolaev/londo/jwt"
+	jwt "github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -221,7 +221,7 @@ func IssueToken(c *cli.Context) error {
 		return cli.NewExitError("cannot read config", 1)
 	}
 
-	b, err := ljwt.IssueJWT(arg)
+	b, err := jwt.IssueJWT(arg)
 	if err != nil {
 		return cli.NewExitError("cannot issue a token", 1)
 	}
