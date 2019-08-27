@@ -11,15 +11,22 @@ import (
 const (
 	name    = "Londo Client"
 	usage   = "A client that allows interraction with Londo Certificate Management"
-	version = "0.1.0"
+	version = "0.2.0"
 )
 
 var (
 	subjCmd = cli.Command{
 		Name:    "get",
 		Aliases: []string{"g"},
-		Usage:   "retrievs all corelated certificates and private keys from the remote",
+		Usage:   "retrieves all corelated certificates and private keys from the remote",
 		Action:  londocli.CallCertService,
+	}
+
+	updCmd = cli.Command{
+		Name:    "update",
+		Aliases: []string{"u"},
+		Usage:   "updates and token from remote host",
+		Action:  londocli.UpdateToken,
 	}
 
 	app *cli.App
@@ -37,7 +44,7 @@ func init() {
 	app.Copyright = londocli.GetCopyright()
 	app.Authors = []cli.Author{londocli.GetAuthors()}
 
-	app.Commands = []cli.Command{subjCmd}
+	app.Commands = []cli.Command{subjCmd, updCmd}
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -48,7 +55,7 @@ func init() {
 			Required:    true,
 		},
 		cli.StringFlag{
-			Name:        "server",
+			Name:        "server, s",
 			Usage:       "connect to server `SERVER:PORT`",
 			Destination: &server.String,
 			Value:       "127.0.0.1:1337",
