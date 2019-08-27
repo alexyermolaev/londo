@@ -27,6 +27,7 @@ var (
 
 func init() {
 	token := londocli.NewToken()
+	server := londocli.NewServer()
 
 	app = cli.NewApp()
 
@@ -38,13 +39,21 @@ func init() {
 
 	app.Commands = []cli.Command{subjCmd}
 
-	app.Flags = []cli.Flag{cli.StringFlag{
-		Name:        "token, t",
-		Usage:       "Load token from `FILE`",
-		Destination: &token.File,
-		FilePath:    "config/token",
-		Required:    true,
-	}}
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:        "token, t",
+			Usage:       "load token from `FILE`",
+			Destination: &token.File,
+			FilePath:    "config/token",
+			Required:    true,
+		},
+		cli.StringFlag{
+			Name:        "server",
+			Usage:       "connect to server `SERVER:PORT`",
+			Destination: &server.String,
+			Value:       "127.0.0.1:1337",
+		},
+	}
 
 	app.EnableBashCompletion = true
 

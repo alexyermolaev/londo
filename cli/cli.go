@@ -27,7 +27,8 @@ var (
 	argErr = cli.NewExitError("must specify an argument", 1)
 	err    error
 
-	token *Token
+	token  *Token
+	server *Server
 )
 
 func init() {
@@ -36,10 +37,7 @@ func init() {
 	})
 
 	token = &Token{}
-}
-
-func NewToken() *Token {
-	return token
+	server = &Server{}
 }
 
 func GetCopyright() string {
@@ -198,7 +196,8 @@ func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 		token: token.String,
 	}
 
-	conn, err := grpc.Dial("127.0.0.1:1337",
+	log.Infof("connecting to %s", server.String)
+	conn, err := grpc.Dial(server.String,
 		grpc.WithInsecure(),
 		grpc.WithPerRPCCredentials(auth))
 	if err != nil {
@@ -253,4 +252,16 @@ func (t *Token) Save() error {
 	os.Remove(t.File)
 	bt := []byte(t.String)
 	return ioutil.WriteFile(t.File, bt, 0400)
+}
+
+func NewToken() *Token {
+	return token
+}
+
+type Server struct {
+	String string
+}
+
+func NewServer() *Server {
+	return server
 }
