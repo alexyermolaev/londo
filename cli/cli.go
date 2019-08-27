@@ -27,8 +27,9 @@ var (
 	argErr = cli.NewExitError("must specify an argument", 1)
 	err    error
 
-	token  *Token
-	server *Server
+	token    *Token
+	server   *Server
+	certPath *CertPath
 )
 
 func init() {
@@ -38,6 +39,7 @@ func init() {
 
 	token = &Token{}
 	server = &Server{}
+	certPath = &CertPath{}
 }
 
 func GetCopyright() string {
@@ -137,11 +139,13 @@ func GetForTarget(c *cli.Context) {
 					break
 				}
 				if err != nil {
-					log.Error(err)
-					os.Exit(2)
+					log.Fatal(err)
 				}
 
-				fmt.Println(msg.GetSubject())
+				log.Infof("saving certificate of %s", msg.GetSubject().GetSubject())
+				if err = SaveCert(msg.GetSubject()); err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 
@@ -264,4 +268,31 @@ type Server struct {
 
 func NewServer() *Server {
 	return server
+}
+
+type CertPath struct {
+	Public  string
+	Private string
+}
+
+func NewCertPath() *CertPath {
+	return certPath
+}
+
+func SaveCert(s *londopb.Subject) error {
+	cert := []byte(s.GetCertificate())
+	prv := []byte(s.GetPrivateKey())
+
+	subj := s.GetSubject()
+	pub := certPath.Public + "/" + subj + ".crt"
+	if err := ioutil.WriteFile(pub, cert, 0644); err != nil {
+		return err
+	}
+
+	key := certPath.Private + "/" + subj + ".key"
+	if err := ioutil.WriteFile(key, prv, 0600); err != nil {
+		return err
+	}
+
+	return nil
 }
