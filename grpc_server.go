@@ -189,6 +189,11 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 		return nil, err
 	}
 
+	// For now we'll trust that if it's on localhost, it's ok to do whatever
+	if ip == "127.0.0.1" {
+		return ctx, nil
+	}
+
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	if err != nil {
 		log.Errorf("%s: no token present", ip)
