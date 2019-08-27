@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/alexyermolaev/londo/londopb"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
 )
@@ -29,6 +30,10 @@ var (
 )
 
 func init() {
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+
 	token, err = GetToken()
 	if err != nil {
 		fmt.Println("cannot read token")
@@ -101,7 +106,7 @@ func GetForTarget(c *cli.Context) {
 					break
 				}
 				if err != nil {
-					fmt.Printf("error while reading stream: %v", err)
+					log.Error(err)
 					os.Exit(2)
 				}
 
