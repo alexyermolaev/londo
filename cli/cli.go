@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alexyermolaev/londo"
+	ljwt "github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -211,23 +211,17 @@ func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 }
 
 func IssueToken(c *cli.Context) error {
-	if err := token.Save(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
 	arg := c.Args().First()
 
 	if arg == "" {
 		return argErr
 	}
 
-	cfg, err := londo.ReadConfig()
 	if err != nil {
 		return cli.NewExitError("cannot read config", 1)
 	}
 
-	b, err := londo.IssueJWT(arg, cfg)
+	b, err := ljwt.IssueJWT(arg)
 	if err != nil {
 		return cli.NewExitError("cannot issue a token", 1)
 	}
@@ -256,6 +250,7 @@ func (t *Token) Read(c *cli.Context) error {
 }
 
 func (t *Token) Save() error {
+	os.Remove(t.File)
 	bt := []byte(t.String)
 	return ioutil.WriteFile(t.File, bt, 0400)
 }

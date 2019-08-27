@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/alexyermolaev/londo/londopb"
+	ljwt "github.com/alexyermolaev/londo/jwt"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -26,7 +27,7 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 
 	log.Infof("%s: update token", ip)
 
-	token, err := IssueJWT(ip, cfg)
+	token, err := ljwt.IssueJWT(ip)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -194,7 +195,7 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 		return nil, err
 	}
 
-	sub, err := VerifyJWT([]byte(token), cfg)
+	sub, err := ljwt.VerifyJWT([]byte(token))
 	if err != nil {
 		log.Warnf("%s: authentication failed.", ip)
 		return ctx, err

@@ -1,4 +1,4 @@
-package londo
+package jwt
 
 import (
 	"time"
@@ -11,16 +11,15 @@ type Payload struct {
 }
 
 var (
-	hs  = jwt.NewHS512([]byte("secret"))
-	now = time.Now()
+	hs = jwt.NewHS512([]byte("secret"))
 )
 
-func IssueJWT(sub string, c *Config) ([]byte, error) {
-	exp := time.Time(now.Add(24 * 30 * time.Hour))
+func IssueJWT(sub string) ([]byte, error) {
+	now := time.Now()
+	exp := time.Time(now.Add(12 * time.Hour))
 
 	pl := Payload{
 		Payload: jwt.Payload{
-			Issuer:         c.JWT.Issuer,
 			Subject:        sub,
 			ExpirationTime: jwt.NumericDate(exp),
 			IssuedAt:       jwt.NumericDate(now),
@@ -31,10 +30,11 @@ func IssueJWT(sub string, c *Config) ([]byte, error) {
 	return jwt.Sign(pl, hs)
 }
 
-func VerifyJWT(token []byte, c *Config) (string, error) {
+func VerifyJWT(token []byte) (string, error) {
 	var (
 		pl Payload
 
+		now = time.Now()
 		// TODO: Other validators
 		expValid = jwt.ExpirationTimeValidator(now)
 

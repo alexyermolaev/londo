@@ -289,7 +289,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			log.Infof("subject with %d has been updated with new certificate", certId)
 
 		default:
-			log.Warn("unknown command received: %s", d.Type)
+			log.Warnf("unknown command received: %s", d.Type)
 		}
 
 		return nil, false

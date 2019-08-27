@@ -15,8 +15,6 @@ const (
 )
 
 var (
-	token *londocli.Token
-
 	// Commands
 	tokenCmd = cli.Command{
 		Name:    "token",
@@ -70,6 +68,8 @@ var (
 )
 
 func init() {
+	_ = londocli.NewToken()
+
 	app = cli.NewApp()
 
 	app.Name = name
@@ -83,8 +83,6 @@ func init() {
 	app.EnableBashCompletion = true
 
 	sort.Sort(cli.CommandsByName(app.Commands))
-
-	token = londocli.NewToken()
 }
 
 func main() {
