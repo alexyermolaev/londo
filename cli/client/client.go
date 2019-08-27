@@ -1,10 +1,13 @@
 package client
 
 import (
+	"context"
 	"os"
 	"sort"
 
 	londocli "github.com/alexyermolaev/londo/cli"
+	"github.com/alexyermolaev/londo/londopb"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -19,7 +22,7 @@ var (
 		Name:    "get",
 		Aliases: []string{"g"},
 		Usage:   "retrievs all corelated certificates and private keys from the remote",
-		Action:  londocli.GetForTarget,
+		Action:  CallCertService,
 	}
 
 	app *cli.App
@@ -39,6 +42,28 @@ func init() {
 	app.EnableBashCompletion = true
 
 	sort.Sort(cli.CommandsByName(app.Commands))
+}
+
+func CallCertService(c *cli.Context) {
+	UpdateToken(c)
+	londocli.GetForTarget(c)
+}
+
+func UpdateToken(c *cli.Context) error {
+	londocli.DoRequest(func(client londopb.CertServiceClient) error {
+		req := &londopb.GetTokenRequest{}
+
+		res, err := client.GetToken(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Info(res.Token.Token)
+
+		return nil
+	})
+
+	return nil
 }
 
 func Run() error {

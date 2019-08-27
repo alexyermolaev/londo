@@ -68,7 +68,7 @@ func GetForTarget(c *cli.Context) {
 	var targets []string
 	targets = append(targets, arg)
 
-	prepareReq(func(client londopb.CertServiceClient) error {
+	DoRequest(func(client londopb.CertServiceClient) error {
 		// TODO: need refactor
 		if arg != "" {
 			req := &londopb.TargetRequest{
@@ -121,7 +121,7 @@ func GetForTarget(c *cli.Context) {
 func GetSubject(c *cli.Context) {
 	arg := c.Args().First()
 
-	prepareReq(func(client londopb.CertServiceClient) error {
+	DoRequest(func(client londopb.CertServiceClient) error {
 		if arg == "" {
 			return argErr
 		}
@@ -160,7 +160,7 @@ func GetSubject(c *cli.Context) {
 	})
 }
 
-func prepareReq(f func(londopb.CertServiceClient) error) error {
+func DoRequest(f func(londopb.CertServiceClient) error) error {
 	auth := &authCreds{
 		token: token,
 	}
