@@ -19,8 +19,7 @@ message TargetRequest {
     repeated string target = 1;
 }
 
-message ForTargetRequest {
-}
+message ForTargetRequest {}
 
 message GetSubjectResponse {
     Subject subject = 1;
@@ -37,6 +36,18 @@ message AddNewSubjectRequest {
     NewSubject subject = 1;
 }
 
+// New Token
+message JWTToken {
+    string token = 1;
+}
+
+message GetTokenRequest {}
+
+message GetTokenResponse {
+    JWTToken token = 1;
+}
+
+
 service CertService {
     rpc GetSubject (GetSubjectRequest) returns (GetSubjectResponse);
     rpc GetSubjectsByTarget (TargetRequest) returns (stream GetSubjectResponse);
@@ -44,6 +55,9 @@ service CertService {
     // Response is determined by requester's IP address
     rpc GetSubjectForTarget (ForTargetRequest) returns (stream GetSubjectResponse);
 
+    // Not implemented
     rpc AddNewSubject (AddNewSubjectRequest) returns (GetSubjectResponse);
+
+    rpc GetToken (GetTokenRequest) returns (GetTokenResponse);
 }
 

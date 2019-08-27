@@ -16,6 +16,30 @@ type GRPCServer struct {
 	Londo *Londo
 }
 
+func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest) (*londopb.GetTokenResponse, error) {
+	ip, _, err := ParseIPAddr(ctx)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprint("server error"))
+	}
+
+	log.Infof("%s: update token", ip)
+
+	token, err := IssueJWT(ip, cfg)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprint("server error"))
+	}
+
+	return &londopb.GetTokenResponse{
+		Token: &londopb.JWTToken{
+			Token: string(token),
+		},
+	}, nil
+}
+
 func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.GetSubjectResponse, error) {
 	return nil, status.Errorf(
 		codes.Unimplemented,
