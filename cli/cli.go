@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/alexyermolaev/londo"
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -24,9 +25,9 @@ var (
 	}
 
 	argErr = cli.NewExitError("must specify an argument", 1)
+	err    error
 
-	token string
-	err   error
+	token *Token
 )
 
 func init() {
@@ -34,11 +35,11 @@ func init() {
 		FullTimestamp: true,
 	})
 
-	token, err = GetToken()
-	if err != nil {
-		fmt.Println("cannot read token")
-		os.Exit(1)
-	}
+	token = &Token{}
+}
+
+func NewToken() *Token {
+	return token
 }
 
 func GetCopyright() string {
@@ -63,12 +64,44 @@ func (a *authCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 	}, nil
 }
 
+func CallCertService(c *cli.Context) {
+	log.Info("reading token")
+	token.Read(c)
+
+	log.Info("updating token")
+	UpdateToken(c)
+
+	log.Info("downloading certificates")
+	GetForTarget(c)
+}
+
+func UpdateToken(c *cli.Context) error {
+	DoRequest(c, func(client londopb.CertServiceClient) error {
+		req := &londopb.GetTokenRequest{}
+
+		res, err := client.GetToken(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("saving token to %s", token.File)
+		token.String = res.Token.Token
+		if err := token.Save(); err != nil {
+			log.Fatalf("unable to save updated token in %s", token.File)
+		}
+
+		return nil
+	})
+
+	return nil
+}
+
 func GetForTarget(c *cli.Context) {
 	arg := c.Args().First()
 	var targets []string
 	targets = append(targets, arg)
 
-	DoRequest(func(client londopb.CertServiceClient) error {
+	DoRequest(c, func(client londopb.CertServiceClient) error {
 		// TODO: need refactor
 		if arg != "" {
 			req := &londopb.TargetRequest{
@@ -121,7 +154,7 @@ func GetForTarget(c *cli.Context) {
 func GetSubject(c *cli.Context) {
 	arg := c.Args().First()
 
-	DoRequest(func(client londopb.CertServiceClient) error {
+	DoRequest(c, func(client londopb.CertServiceClient) error {
 		if arg == "" {
 			return argErr
 		}
@@ -160,9 +193,9 @@ func GetSubject(c *cli.Context) {
 	})
 }
 
-func DoRequest(f func(londopb.CertServiceClient) error) error {
+func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 	auth := &authCreds{
-		token: token,
+		token: token.String,
 	}
 
 	conn, err := grpc.Dial("127.0.0.1:1337",
@@ -177,19 +210,52 @@ func DoRequest(f func(londopb.CertServiceClient) error) error {
 	return f(client)
 }
 
-func GetToken() (string, error) {
-	p := "config/token"
-
-	f, err := os.Open(p)
-	defer f.Close()
-	if err != nil {
-		return "", err
+func IssueToken(c *cli.Context) error {
+	if err := token.Save(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return "", err
+	arg := c.Args().First()
+
+	if arg == "" {
+		return argErr
 	}
 
-	return strings.Trim(string(b), "\n"), nil
+	cfg, err := londo.ReadConfig()
+	if err != nil {
+		return cli.NewExitError("cannot read config", 1)
+	}
+
+	b, err := londo.IssueJWT(arg, cfg)
+	if err != nil {
+		return cli.NewExitError("cannot issue a token", 1)
+	}
+
+	token.String = string(b)
+
+	fmt.Printf("sub: %s token: %s\n", arg, string(token.String))
+	return nil
+}
+
+type Token struct {
+	File   string
+	String string
+}
+
+func (t *Token) Read(c *cli.Context) error {
+
+	b, err := ioutil.ReadFile(t.File)
+	if err != nil {
+		return err
+	}
+
+	t.String = strings.Trim(string(b), "\n")
+
+	return nil
+}
+
+func (t *Token) Save() error {
+	bt := []byte(t.String)
+	return ioutil.WriteFile(t.File, bt, 0400)
 }
