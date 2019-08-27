@@ -11,7 +11,7 @@ import (
 const (
 	name    = "Londo Client"
 	usage   = "A client that allows interraction with Londo Certificate Management"
-	version = "0.2.1"
+	version = "0.2.2"
 )
 
 var (
@@ -41,7 +41,7 @@ func init() {
 		cli.Command{
 			Name:    "update",
 			Aliases: []string{"u"},
-			Usage:   "updates and token from remote host",
+			Usage:   "request an updated token from remote host",
 			Action:  londocli.UpdateToken,
 		}}
 

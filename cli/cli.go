@@ -142,7 +142,7 @@ func GetForTarget(c *cli.Context) {
 					log.Fatal(err)
 				}
 
-				log.Infof("saving certificate of %s", msg.GetSubject().GetSubject())
+				log.Infof("saving %s certificate", msg.GetSubject().GetSubject())
 				if err = SaveCert(msg.GetSubject()); err != nil {
 					log.Fatal(err)
 				}
