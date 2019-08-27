@@ -153,14 +153,15 @@ func GetForTarget(c *cli.Context) {
 	})
 }
 
-func AddSubject(c *cli.Context) {
+func AddSubject(c *cli.Context) error {
+	if !c.Args().Present() {
+		return argErr
+	}
+	println(c.Args().Get(1))
+
 	arg := c.Args().First()
 
 	DoRequest(c, func(client londopb.CertServiceClient) error {
-		if arg == "" {
-			return argErr
-		}
-
 		req := &londopb.AddNewSubjectRequest{
 			Subject: &londopb.NewSubject{
 				Subject: arg,
@@ -174,6 +175,8 @@ func AddSubject(c *cli.Context) {
 
 		return nil
 	})
+
+	return nil
 }
 
 func GetSubject(c *cli.Context) {

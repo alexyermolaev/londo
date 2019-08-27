@@ -81,6 +81,8 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 			fmt.Sprintf("%s already exists", s))
 	}
 
+	wg.Wait()
+
 	return nil, status.Errorf(
 		codes.Unimplemented,
 		fmt.Sprintf("not implemented"))

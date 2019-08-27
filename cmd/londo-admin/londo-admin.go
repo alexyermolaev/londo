@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	name    = "Londo"
+	name    = "londo-admin"
 	usage   = "A command line interface, allows interraction with Londo Certificate Management"
-	version = "0.1.0"
+	version = "0.2.0"
 )
 
 var (
@@ -42,10 +42,19 @@ var (
 	}
 
 	addSubjCmd = cli.Command{
-		Name:    "add",
-		Aliases: []string{"a"},
-		Usage:   "add new subject",
-		Action:  londocli.AddSubject,
+		Name:        "add",
+		Aliases:     []string{"a"},
+		Usage:       "add subject",
+		Description: "add new subject, its alternative names and distribution targets",
+		Flags: []cli.Flag{
+			cli.StringSliceFlag{
+				Name: "alt, a",
+			},
+			cli.StringSliceFlag{
+				Name: "target, t",
+			},
+		},
+		Action: londocli.AddSubject,
 	}
 
 	delSubjCmd = cli.Command{
