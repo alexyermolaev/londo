@@ -93,8 +93,11 @@ func (l *Londo) PublishNewSubject(s *Subject) *Londo {
 func (l *Londo) PublishCollect(crtId int) *Londo {
 	e := CollectEvent{CertID: crtId}
 
-	// TODO: error handling
-	j, _ := json.Marshal(&e)
+	j, err := json.Marshal(&e)
+	if err != nil {
+		log.Error(err)
+		return l
+	}
 
 	if err := l.AMQP.Emit(
 		CollectExchange,
