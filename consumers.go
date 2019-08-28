@@ -94,7 +94,6 @@ old certificate and issue new one. While this complicates logic, currently, this
 approach.
 */
 // TODO: need separate revoke consumer
-
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) (error, bool) {
 		s, err := UnmarshalSubjMsg(&d)
@@ -214,6 +213,41 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 
 		switch d.Type {
+		case DbGetExpiringSubjectsCmd:
+			// TODO: need refactor to get rid of duplication
+			var e GetExpringSubjEvent
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				return err, false
+			}
+
+			log.Infof("getting subjects expiring in %d days", e.Days)
+
+			exp, err := l.Db.FindExpiringSubjects(24 * int(e.Days))
+			if err != nil {
+				log.Error(err)
+				return err, false
+			}
+
+			length := len(exp) - 1
+			var cmd string
+
+			if length == -1 {
+				var s Subject
+				l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
+				log.Infof("sent none -> %s queue", d.ReplyTo)
+				return nil, false
+			}
+
+			for i := 0; i <= length; i++ {
+
+				if i == length {
+					cmd = CloseChannelCmd
+				}
+
+				l.PublishReplySubject(exp[i], d.ReplyTo, cmd)
+				log.Infof("sent %s -> %s queue", exp[i].Subject, d.ReplyTo)
+			}
+
 		case DbGetSubjectByTargetCmd:
 			var e GetSubjectByTarget
 			if err := json.Unmarshal(d.Body, &e); err != nil {

@@ -42,7 +42,61 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 }
 
 func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest, stream londopb.CertService_GetExpiringSubjectServer) error {
-	return nil
+	d := req.Days
+
+	ip, addr, err := ParseIPAddr(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	log.Infof("%s: get expiring subs", ip)
+
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
+		return status.Errorf(
+			codes.FailedPrecondition,
+			fmt.Sprint("server error"))
+	}
+
+	log.Debug("creating consumer")
+
+	var (
+		ch   = make(chan Subject)
+		done = make(chan struct{})
+		wg   sync.WaitGroup
+	)
+
+	wg.Add(1)
+	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
+
+	g.Londo.PublishDbExpEvent(d, addr)
+
+	for {
+		select {
+		case rs := <-ch:
+			if rs.Subject == "" {
+				log.Errorf("%s: code %d", ip, codes.NotFound)
+
+				<-done
+				wg.Wait()
+				return status.Errorf(
+					codes.NotFound,
+					fmt.Sprintf("no subjects found"))
+			}
+
+			res := &londopb.GetExpringSubjectsResponse{
+				Subject: &londopb.ExpiringSubject{
+					Subject: rs.Subject,
+					ExpDate: rs.NotAfter.Unix(),
+				},
+			}
+			stream.Send(res)
+
+		case _ = <-done:
+			wg.Wait()
+			log.Infof("%s: close stream", ip)
+			return nil
+		}
+	}
 }
 
 func (g *GRPCServer) DeleteSubject(ctx context.Context, req *londopb.DeleteSubjectRequest) (*londopb.DeleteSubjectResponse, error) {

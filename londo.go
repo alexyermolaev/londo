@@ -32,11 +32,12 @@ const (
 
 	// Commands
 	// Db
-	DbDeleteSubjComd        = "subj.delete"
-	DbAddSubjComd           = "subj.add"
-	DbUpdateSubjComd        = "subj.update"
-	DbGetSubjectComd        = "subj.get"
-	DbGetSubjectByTargetCmd = "subj.get.taarget"
+	DbDeleteSubjComd         = "subj.delete"
+	DbAddSubjComd            = "subj.add"
+	DbUpdateSubjComd         = "subj.update"
+	DbGetSubjectComd         = "subj.get"
+	DbGetSubjectByTargetCmd  = "subj.get.taarget"
+	DbGetExpiringSubjectsCmd = "subj.get.expiring"
 
 	// Tell consumer to close channel
 	CloseChannelCmd = "stop"

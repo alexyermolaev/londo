@@ -126,6 +126,32 @@ func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo
 	return l
 }
 
+// TODO: db commands thing needs to be redone in a better way. need to stop hacking.
+func (l *Londo) PublishDbExpEvent(days int32, reply string) *Londo {
+	e := GetExpringSubjEvent{Days: days}
+
+	j, err := json.Marshal(&e)
+	if err != nil {
+		log.Error(err)
+		return l
+	}
+
+	if err := l.AMQP.Emit(
+		DbReplyExchange,
+		DbReplyQueue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Type:        DbGetExpiringSubjectsCmd,
+			ReplyTo:     reply,
+			Body:        j,
+		}); err != nil {
+		log.Error(err)
+		return l
+	}
+
+	return l
+}
+
 func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 	var logMsg string
 	var e interface{}

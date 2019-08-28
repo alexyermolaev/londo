@@ -1,5 +1,7 @@
 package londo
 
+import "time"
+
 type RenewEvent struct {
 	Subject  string
 	CertID   int
@@ -46,4 +48,13 @@ type NewSubjectEvenet struct {
 
 type CollectEvent struct {
 	CertID int
+}
+
+type GetExpringSubjEvent struct {
+	Days int32
+}
+
+type ExpiringSubjEventResponse struct {
+	Subject  string
+	NotAfter time.Time
 }
