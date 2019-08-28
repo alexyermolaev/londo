@@ -23,6 +23,6 @@ func main() {
 				"x-message-ttl": int(59 * time.Second / time.Millisecond),
 			}).
 		ConsumeDbRPC().
-		PublishExpiringCerts().
+		// PublishExpiringCerts().
 		Run()
 }

@@ -5,27 +5,29 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/roylee0704/gron"
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
-func (l *Londo) PublishExpiringCerts() *Londo {
-	cron := gron.New()
+//
+//  Not needed. This is a task for a separate microservice or admin cli
+//
+// func (l *Londo) PublishExpiringCerts() *Londo {
+// 	cron := gron.New()
 
-	cron.AddFunc(gron.Every(1*time.Hour), func() {
-		exp, err := l.Db.FindExpiringSubjects(720)
-		fail(err)
+// 	cron.AddFunc(gron.Every(1*time.Hour), func() {
+// 		exp, err := l.Db.FindExpiringSubjects(720)
+// 		fail(err)
 
-		for _, e := range exp {
-			l.PublishRenew(e)
-		}
-	})
+// 		for _, e := range exp {
+// 			l.PublishRenew(e)
+// 		}
+// 	})
 
-	cron.Start()
+// 	cron.Start()
 
-	return l
-}
+// 	return l
+// }
 
 func (l *Londo) PublishRenew(s *Subject) *Londo {
 	re := RenewEvent{
