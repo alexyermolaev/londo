@@ -13,6 +13,10 @@ func main() {
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
 			amqp.ExchangeDirect, nil).
+		Declare(
+			londo.EnrollExchange,
+			londo.EnrollQueue,
+			amqp.ExchangeDirect, nil).
 		DeclareExchange(
 			londo.GRPCServerExchange,
 			amqp.ExchangeDirect).

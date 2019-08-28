@@ -29,10 +29,15 @@ message GetSubjectResponse {
 message NewSubject {
     string subject = 1;
     repeated string alt_names = 2;
+    repeated string targets = 3;
 }
 
 message AddNewSubjectRequest {
     NewSubject subject = 1;
+}
+
+message AddNewSubjectResponse {
+    string subject = 1;
 }
 
 // New Token
@@ -55,7 +60,7 @@ service CertService {
     rpc GetSubjectForTarget (ForTargetRequest) returns (stream GetSubjectResponse);
 
     // Not implemented
-    rpc AddNewSubject (AddNewSubjectRequest) returns (GetSubjectResponse);
+    rpc AddNewSubject (AddNewSubjectRequest) returns (AddNewSubjectResponse);
 
     rpc GetToken (GetTokenRequest) returns (GetTokenResponse);
 }

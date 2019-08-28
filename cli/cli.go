@@ -157,21 +157,21 @@ func AddSubject(c *cli.Context) error {
 	if !c.Args().Present() {
 		return argErr
 	}
-	println(c.Args().Get(1))
-
-	arg := c.Args().First()
 
 	DoRequest(c, func(client londopb.CertServiceClient) error {
 		req := &londopb.AddNewSubjectRequest{
 			Subject: &londopb.NewSubject{
-				Subject: arg,
+				Subject:  c.Args().First(),
+				AltNames: c.StringSlice("alt"),
 			},
 		}
 
-		_, err := client.AddNewSubject(context.Background(), req)
+		res, err := client.AddNewSubject(context.Background(), req)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		log.Info(res.GetSubject())
 
 		return nil
 	})

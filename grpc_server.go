@@ -41,10 +41,14 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	}, nil
 }
 
-func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.GetSubjectResponse, error) {
+func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.AddNewSubjectResponse, error) {
 	// FIXME: code duplication
 	s := req.GetSubject().Subject
-	subj := Subject{Subject: s}
+	subj := Subject{
+		Subject:  s,
+		AltNames: req.GetSubject().AltNames,
+		Targets:  req.GetSubject().Targets,
+	}
 
 	ip, addr, err := ParseIPAddr(ctx)
 	if err != nil {
@@ -83,9 +87,12 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 
 	wg.Wait()
 
-	return nil, status.Errorf(
-		codes.Unimplemented,
-		fmt.Sprintf("not implemented"))
+	log.Infof("%s: %s -> enroll", ip, s)
+	g.Londo.PublishNewSubject(&subj)
+
+	return &londopb.AddNewSubjectResponse{
+		Subject: s + " has been queued for enrollment",
+	}, nil
 }
 
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
