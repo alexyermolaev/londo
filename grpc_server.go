@@ -84,7 +84,7 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		wg.Wait()
 
 		log.Infof("%s: %s -> renew", ip, s)
-		g.Londo.PublishRenew(&subj)
+		g.Londo.PublishRenew(&rs)
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
