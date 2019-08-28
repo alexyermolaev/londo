@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sort"
 
 	"github.com/alexyermolaev/londo"
 	londocli "github.com/alexyermolaev/londo/cli"
@@ -30,13 +31,22 @@ func init() {
 
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
-			Name:  "hours",
-			Usage: "specify number of `HOURS` between checks",
-			Value: 12,
+			Name:        "hours",
+			Usage:       "specify number of `HOURS` between checks",
+			Value:       12,
+			Destination: &londo.ScanHours,
+		},
+		cli.BoolFlag{
+			Name:        "debug, d",
+			Usage:       "turn `DEBUG` on and off",
+			EnvVar:      `LONDO_DEBUG`,
+			Destination: &londo.Debug,
 		},
 	}
 
 	app.Action = defaultCommand
+
+	sort.Sort(cli.FlagsByName(app.Flags))
 }
 
 /*
