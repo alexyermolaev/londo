@@ -58,9 +58,11 @@ var (
 	}
 
 	delSubjCmd = cli.Command{
-		Name:    "delete",
-		Aliases: []string{"d", "del"},
-		Usage:   "delete a subject",
+		Name:        "delete",
+		Aliases:     []string{"d", "del"},
+		Usage:       "delete subject",
+		Description: "schedules an existing subject to be removed, and its certificate revoked",
+		Action:      londocli.DeleteSubject,
 	}
 
 	getSubjCmd = cli.Command{

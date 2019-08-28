@@ -163,10 +163,34 @@ func AddSubject(c *cli.Context) error {
 			Subject: &londopb.NewSubject{
 				Subject:  c.Args().First(),
 				AltNames: c.StringSlice("alt"),
+				Targets:  c.StringSlice("target"),
 			},
 		}
 
 		res, err := client.AddNewSubject(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Info(res.GetSubject())
+
+		return nil
+	})
+
+	return nil
+}
+
+func DeleteSubject(c *cli.Context) error {
+	if !c.Args().Present() {
+		return argErr
+	}
+
+	DoRequest(c, func(client londopb.CertServiceClient) error {
+		req := &londopb.DeleteSubjectRequest{
+			Subject: c.Args().First(),
+		}
+
+		res, err := client.DeleteSubject(context.Background(), req)
 		if err != nil {
 			log.Fatal(err)
 		}

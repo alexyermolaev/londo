@@ -40,6 +40,15 @@ message AddNewSubjectResponse {
     string subject = 1;
 }
 
+// Delete Subject
+message DeleteSubjectRequest {
+    string subject = 1;
+}
+
+message DeleteSubjectResponse {
+    string subject = 1;
+}
+
 // New Token
 message JWTToken {
     string token = 1;
@@ -59,8 +68,8 @@ service CertService {
     // Response is determined by requester's IP address
     rpc GetSubjectForTarget (ForTargetRequest) returns (stream GetSubjectResponse);
 
-    // Not implemented
     rpc AddNewSubject (AddNewSubjectRequest) returns (AddNewSubjectResponse);
+    rpc DeleteSubject (DeleteSubjectRequest) returns (DeleteSubjectResponse);
 
     rpc GetToken (GetTokenRequest) returns (GetTokenResponse);
 }

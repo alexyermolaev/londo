@@ -41,6 +41,19 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	}, nil
 }
 
+func (g *GRPCServer) DeleteSubject(ctx context.Context, req *londopb.DeleteSubjectRequest) (*londopb.DeleteSubjectResponse, error) {
+	s := req.GetSubject()
+
+	ip, _, err := ParseIPAddr(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("%s: revoke %s", ip, s)
+
+	return nil, err
+}
+
 func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.AddNewSubjectResponse, error) {
 	// FIXME: code duplication
 	s := req.GetSubject().Subject
