@@ -264,7 +264,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			log.Infof("sub %s: update unreach %v", e.Subject, e.Unresolvable)
 
-			l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable)
+			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable); err != nil {
+				log.Error(err)
+				return err, false
+			}
 
 		case DbGetExpiringSubjectsCmd:
 			// TODO: need refactor to get rid of duplication
