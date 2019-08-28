@@ -235,7 +235,7 @@ func GetExpiringSubjects(c *cli.Context) {
 				Subject:  msg.GetSubject().GetSubject(),
 				NotAfter: t,
 			}
-			// TODO: finish it up
+
 			s, err := yaml.Marshal(&y)
 			if err != nil {
 				log.Fatal(err)

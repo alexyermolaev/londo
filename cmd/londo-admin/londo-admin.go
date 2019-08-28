@@ -11,10 +11,17 @@ import (
 const (
 	name    = "londo-admin"
 	usage   = "A command line interface, allows interraction with Londo Certificate Management"
-	version = "0.2.0"
+	version = "0.3.0"
 )
 
 var (
+	daysFlag = cli.IntFlag{
+		Name:        "days, d",
+		Usage:       "number of `DAYS` before expiration",
+		Destination: &londocli.ExpDays,
+		Value:       90,
+	}
+
 	// Commands
 	tokenCmd = cli.Command{
 		Name:    "token",
@@ -39,6 +46,7 @@ var (
 			delSubjCmd,
 			getSubjCmd,
 			expSubjCmd,
+			renewCmd,
 		},
 	}
 
@@ -79,14 +87,15 @@ var (
 		Usage:       "get a list of expiring certificates",
 		Description: "returns a detailed list of certificates with subject names and an expiration date",
 		Action:      londocli.GetExpiringSubjects,
-		Flags: []cli.Flag{
-			cli.IntFlag{
-				Name:        "days, d",
-				Usage:       "number of `DAYS` before expiration",
-				Destination: &londocli.ExpDays,
-				Value:       90,
-			},
-		},
+		Flags:       []cli.Flag{daysFlag},
+	}
+
+	renewCmd = cli.Command{
+		Name:        "renew",
+		Aliases:     []string{"r"},
+		Usage:       "renew a subject",
+		Description: "can renew one or all expiring subjects",
+		Flags:       []cli.Flag{daysFlag},
 	}
 
 	app *cli.App
