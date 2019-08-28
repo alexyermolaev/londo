@@ -214,6 +214,10 @@ func (l *Londo) ConsumeGrpcReplies(
 	return l
 }
 
+func (l *Londo) ConsumeCheck() *Londo {
+	return l
+}
+
 func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 

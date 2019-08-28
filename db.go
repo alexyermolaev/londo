@@ -170,16 +170,17 @@ func (m *MongoDB) getSubjCollection() *mongo.Collection {
 }
 
 type Subject struct {
-	ID          primitive.ObjectID `bson:"_id"`
-	Subject     string             `bson:"subject"`
-	CSR         string             `bson:"csr"`
-	PrivateKey  string             `bson:"private_key"`
-	Certificate string             `bson:"certificate"`
-	CertID      int                `bson:"cert_id"`
-	OrderID     string             `bson:"order_id"`
-	NotAfter    time.Time          `bson:"not_after"`
-	CreatedAt   time.Time          `bson:"created_at"`
-	UpdatedAt   time.Time          `bson:"updated_at"`
-	Targets     []string           `bson:"targets"`
-	AltNames    []string           `bson:"alt_names"`
+	ID           primitive.ObjectID `bson:"_id"`
+	Subject      string             `bson:"subject"`
+	CSR          string             `bson:"csr"`
+	PrivateKey   string             `bson:"private_key"`
+	Certificate  string             `bson:"certificate"`
+	CertID       int                `bson:"cert_id"`
+	OrderID      string             `bson:"order_id"`
+	NotAfter     time.Time          `bson:"not_after"`
+	CreatedAt    time.Time          `bson:"created_at"`
+	UpdatedAt    time.Time          `bson:"updated_at"`
+	Unresolvable time.Time          `bson:"unresolvable"`
+	Targets      []string           `bson:"targets"`
+	AltNames     []string           `bson:"alt_names"`
 }

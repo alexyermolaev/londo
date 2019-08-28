@@ -25,6 +25,9 @@ const (
 	CollectExchange = "collect-rpc"
 	CollectQueue    = "collect"
 
+	CheckExchange = "check-rpc"
+	CheckQueue    = "check"
+
 	DbReplyExchange = "db-rpc"
 	DbReplyQueue    = "db-rpc-replies"
 
