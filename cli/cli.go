@@ -208,7 +208,35 @@ func DeleteSubject(c *cli.Context) error {
 }
 
 func RenewSubject(c *cli.Context) {
+	if !c.Args().Present() {
+		return
+	}
 
+	DoRequest(c, func(client londopb.CertServiceClient) error {
+		req := &londopb.RenewSubjectRequest{
+			Subject: c.Args().First(),
+		}
+
+		stream, err := client.RenewSubjects(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			log.Infof("%s was queued to be renewed", msg.GetSubject().GetSubject())
+		}
+
+		return nil
+	})
 }
 
 func GetExpiringSubjects(c *cli.Context) {
