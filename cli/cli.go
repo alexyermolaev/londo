@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	copyright = "(c) 2019 Alex Yermolaev, MIT License"
+	Copyright = "(c) 2019 Alex Yermolaev, MIT License"
 )
 
 var (
@@ -47,7 +47,7 @@ func init() {
 }
 
 func GetCopyright() string {
-	return copyright
+	return Copyright
 }
 
 func GetAuthors() cli.Author {

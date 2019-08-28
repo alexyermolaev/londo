@@ -47,6 +47,8 @@ const (
 	CloseChannelCmd = "stop"
 
 	ContentType = "application/json"
+
+	Version = "0.1.0"
 )
 
 var (

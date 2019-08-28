@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	name    = "londo-chckerd"
-	usage   = "checks DNS records of all subjects"
-	version = "0.0.1"
+	name  = "londo-chckerd"
+	usage = "checks DNS records of all subjects"
 )
 
 var (
@@ -25,8 +24,8 @@ func init() {
 
 	app.Name = name
 	app.Usage = usage
-	app.Version = version
-	app.Copyright = londocli.GetCopyright()
+	app.Version = londo.Version
+	app.Copyright = londocli.Copyright
 	app.Authors = []cli.Author{londocli.GetAuthors()}
 
 	app.Flags = []cli.Flag{
@@ -39,8 +38,13 @@ func init() {
 		cli.BoolFlag{
 			Name:        "debug, d",
 			Usage:       "turn `DEBUG` on and off",
-			EnvVar:      `LONDO_DEBUG`,
+			EnvVar:      "LONDO_DEBUG",
 			Destination: &londo.Debug,
+		},
+		cli.StringFlag{
+			Name:   "config, c",
+			Usage:  "load configuration from `FILE`",
+			EnvVar: "LONDO_CONFIG",
 		},
 	}
 
