@@ -41,6 +41,64 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	}, nil
 }
 
+func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream londopb.CertService_RenewSubjectsServer) error {
+	s := req.GetSubject()
+
+	ip, addr, err := ParseIPAddr(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	if s != "" {
+		log.Infof("%s: renew %s", ip, s)
+		subj := Subject{Subject: s}
+
+		if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
+			log.Error(err)
+			return status.Errorf(
+				codes.FailedPrecondition,
+				fmt.Sprint("server error"))
+		}
+
+		log.Debug("creating consumer")
+
+		var (
+			ch = make(chan Subject)
+			wg sync.WaitGroup
+		)
+
+		wg.Add(1)
+		g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
+
+		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
+		g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
+
+		rs := <-ch
+
+		if rs.Subject == "" {
+			log.Errorf("%s: code %d, resp %s", ip, codes.NotFound, s)
+			return status.Errorf(
+				codes.NotFound,
+				fmt.Sprintf("%s not found", s))
+		}
+		wg.Wait()
+
+		log.Infof("%s: %s -> renew", ip, s)
+		g.Londo.PublishRenew(&subj)
+
+		res := &londopb.RenewResponse{
+			Subject: &londopb.RenewSubject{
+				Subject: s,
+			},
+		}
+
+		stream.Send(res)
+
+		return nil
+	}
+	return nil
+}
+
 func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest, stream londopb.CertService_GetExpiringSubjectServer) error {
 	d := req.Days
 
@@ -52,6 +110,7 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	log.Infof("%s: get expiring subs", ip)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
+		log.Error(err)
 		return status.Errorf(
 			codes.FailedPrecondition,
 			fmt.Sprint("server error"))

@@ -94,7 +94,8 @@ var (
 		Name:        "renew",
 		Aliases:     []string{"r"},
 		Usage:       "renew a subject",
-		Description: "can renew one or all expiring subjects",
+		Description: "can renew one or all expiring subjects. If subject is specified, days flag will be ignored.",
+		Action:      londocli.RenewSubject,
 		Flags:       []cli.Flag{daysFlag},
 	}
 

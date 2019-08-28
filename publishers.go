@@ -18,38 +18,43 @@ func (l *Londo) PublishExpiringCerts() *Londo {
 		fail(err)
 
 		for _, e := range exp {
-
-			re := RenewEvent{
-				Subject:  e.Subject,
-				CertID:   e.CertID,
-				AltNames: e.AltNames,
-				Targets:  e.Targets,
-			}
-
-			j, err := json.Marshal(&re)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			if err = l.AMQP.Emit(
-				RenewExchange,
-				RenewQueue,
-				amqp.Publishing{
-					ContentType:   ContentType,
-					CorrelationId: e.ID.Hex(),
-					Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-					Body:          j,
-				}); err != nil {
-				log.Error(err)
-				return
-			}
-
-			log.Infof("published %s", e.Subject)
+			l.PublishRenew(e)
 		}
 	})
 
 	cron.Start()
+
+	return l
+}
+
+func (l *Londo) PublishRenew(s *Subject) *Londo {
+	re := RenewEvent{
+		Subject:  s.Subject,
+		CertID:   s.CertID,
+		AltNames: s.AltNames,
+		Targets:  s.Targets,
+	}
+
+	j, err := json.Marshal(&re)
+	if err != nil {
+		log.Error(err)
+		return l
+	}
+
+	if err = l.AMQP.Emit(
+		RenewExchange,
+		RenewQueue,
+		amqp.Publishing{
+			ContentType:   ContentType,
+			CorrelationId: s.ID.Hex(),
+			Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+			Body:          j,
+		}); err != nil {
+		log.Error(err)
+		return l
+	}
+
+	log.Infof("published %s", s.Subject)
 
 	return l
 }

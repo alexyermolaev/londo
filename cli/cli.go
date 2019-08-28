@@ -207,6 +207,10 @@ func DeleteSubject(c *cli.Context) error {
 	return nil
 }
 
+func RenewSubject(c *cli.Context) {
+
+}
+
 func GetExpiringSubjects(c *cli.Context) {
 	DoRequest(c, func(client londopb.CertServiceClient) error {
 		req := &londopb.GetExpiringSubjectsRequest{

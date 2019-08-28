@@ -182,7 +182,12 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeGrpcReplies(queue string, ch chan Subject, done chan struct{}, wg *sync.WaitGroup) *Londo {
+func (l *Londo) ConsumeGrpcReplies(
+	queue string,
+	ch chan Subject,
+	done chan struct{},
+	wg *sync.WaitGroup) *Londo {
+
 	go l.AMQP.Consume(queue, wg, func(d amqp.Delivery) (error, bool) {
 
 		var s Subject
