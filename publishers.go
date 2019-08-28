@@ -115,6 +115,29 @@ func (l *Londo) PublishCollect(crtId int) *Londo {
 	return l
 }
 
+func (l *Londo) PublishUpdateDNSResult(e *CheckDNSEvent) *Londo {
+	j, err := json.Marshal(&e)
+	if err != nil {
+		log.Error(err)
+		return l
+	}
+
+	if err := l.AMQP.Emit(
+		DbReplyExchange,
+		DbReplyQueue,
+		amqp.Publishing{
+			ContentType: ContentType,
+			Body:        j,
+		}); err != nil {
+		log.Error(err)
+		return l
+	}
+
+	log.Info("sub %s unreach %v -> db", e.Subject, e.Unresolvable)
+
+	return l
+}
+
 func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo {
 	j, err := json.Marshal(&s)
 	if err != nil {

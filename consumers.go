@@ -240,11 +240,16 @@ func (l *Londo) ConsumeCheck() *Londo {
 		}
 
 		if len(ips) == 0 {
-			// TODO: update unreachable
 			e.Unresolvable = time.Now()
+			l.PublishUpdateDNSResult(&e)
+			return nil, false
 		}
 
-		// TODO: we're good update targets
+		e.Targets = nil
+		for _, ip := range ips {
+			e.Targets = append(e.Targets, ip.String())
+		}
+		l.PublishUpdateDNSResult(&e)
 
 		return nil, false
 	})
