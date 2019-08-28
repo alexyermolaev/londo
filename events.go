@@ -58,3 +58,10 @@ type ExpiringSubjEventResponse struct {
 	Subject  string
 	NotAfter time.Time
 }
+
+type CheckDNSEvent struct {
+	Subject string
+	Targets []string
+	// TODO: it may not be possible to deserialze it and from JSON
+	Unresolvable time.Time
+}

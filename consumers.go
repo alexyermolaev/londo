@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -215,6 +216,37 @@ func (l *Londo) ConsumeGrpcReplies(
 }
 
 func (l *Londo) ConsumeCheck() *Londo {
+	go l.AMQP.Consume(CheckQueue, nil, func(d amqp.Delivery) (error, bool) {
+		var e CheckDNSEvent
+		if err := json.Unmarshal(d.Body, &e); err != nil {
+			return err, false
+		}
+
+		log.Infof("received %s subject to be checked", e.Subject)
+
+		now := time.Now()
+		t := e.Unresolvable.Sub(now).Round(time.Hour).Hours()
+
+		ips, err := net.LookupIP(e.Subject)
+		if err != nil {
+			d.Reject(false)
+			return err, false
+		}
+
+		// TODO: unhardcode this via flag, config and env
+		if t > 168 && len(ips) == 0 {
+			// TODO: delete/revoke
+		}
+
+		if len(ips) == 0 {
+			// TODO: update unreachable
+		}
+
+		// TODO: we're good update targets
+
+		return nil, false
+	})
+
 	return l
 }
 

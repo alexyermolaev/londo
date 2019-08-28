@@ -35,6 +35,7 @@ func init() {
 			Value:       12,
 			Destination: &londo.ScanHours,
 		},
+		// TODO: these are default flags all daemon share. They need to be elsewhere.
 		cli.BoolFlag{
 			Name:        "debug, d",
 			Usage:       "turn `DEBUG` on and off",
