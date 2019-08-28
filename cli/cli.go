@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	jwt "github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -216,6 +218,7 @@ func GetExpiringSubjects(c *cli.Context) {
 			log.Fatal(err)
 		}
 
+		log.Info("results:")
 		for {
 			msg, err := stream.Recv()
 			if err == io.EOF {
@@ -226,8 +229,19 @@ func GetExpiringSubjects(c *cli.Context) {
 				log.Fatal(err)
 			}
 
+			t := time.Unix(msg.GetSubject().ExpDate, 0).String()
+
+			y := ExpiringSubjects{
+				Subject:  msg.GetSubject().GetSubject(),
+				NotAfter: t,
+			}
 			// TODO: finish it up
-			log.Infof("%v", msg.GetSubject())
+			s, err := yaml.Marshal(&y)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Println(string(s))
 		}
 
 		return nil
@@ -375,4 +389,9 @@ func SaveCert(s *londopb.Subject) error {
 	}
 
 	return nil
+}
+
+type ExpiringSubjects struct {
+	Subject  string `yaml:"subject"`
+	NotAfter string `yaml:"not_after"`
 }
