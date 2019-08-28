@@ -49,6 +49,20 @@ message DeleteSubjectResponse {
     string subject = 1;
 }
 
+// Get expiring subjects
+message ExpiringSubject {
+    string subject = 1;
+    int64 exp_date = 2;
+}
+
+message GetExpiringSubjectsRequest {
+    int32 days = 1;
+}
+
+message GetExpringSubjectsResponse {
+    ExpiringSubject subject = 1;
+}
+
 // New Token
 message JWTToken {
     string token = 1;
@@ -70,6 +84,8 @@ service CertService {
 
     rpc AddNewSubject (AddNewSubjectRequest) returns (AddNewSubjectResponse);
     rpc DeleteSubject (DeleteSubjectRequest) returns (DeleteSubjectResponse);
+
+    rpc GetExpiringSubject (GetExpiringSubjectsRequest) returns (stream GetExpringSubjectsResponse);
 
     rpc GetToken (GetTokenRequest) returns (GetTokenResponse);
 }

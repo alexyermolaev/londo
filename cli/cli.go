@@ -30,6 +30,7 @@ var (
 	token    *Token
 	server   *Server
 	certPath *CertPath
+	ExpDays  int
 )
 
 func init() {
@@ -40,6 +41,7 @@ func init() {
 	token = &Token{}
 	server = &Server{}
 	certPath = &CertPath{}
+
 }
 
 func GetCopyright() string {
@@ -201,6 +203,35 @@ func DeleteSubject(c *cli.Context) error {
 	})
 
 	return nil
+}
+
+func GetExpiringSubjects(c *cli.Context) {
+	DoRequest(c, func(client londopb.CertServiceClient) error {
+		req := &londopb.GetExpiringSubjectsRequest{
+			Days: int32(ExpDays),
+		}
+
+		stream, err := client.GetExpiringSubject(context.Background(), req)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// TODO: finish it up
+			log.Infof("%v", msg.GetSubject())
+		}
+
+		return nil
+	})
 }
 
 func GetSubject(c *cli.Context) {

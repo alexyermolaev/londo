@@ -38,6 +38,7 @@ var (
 			addSubjCmd,
 			delSubjCmd,
 			getSubjCmd,
+			expSubjCmd,
 		},
 	}
 
@@ -70,6 +71,22 @@ var (
 		Aliases: []string{"g"},
 		Usage:   "get a subject",
 		Action:  londocli.GetSubject,
+	}
+
+	expSubjCmd = cli.Command{
+		Name:        "expiring",
+		Aliases:     []string{"e"},
+		Usage:       "get a list of expiring certificates",
+		Description: "returns a detailed list of certificates with subject names and an expiration date",
+		Action:      londocli.GetExpiringSubjects,
+		Flags: []cli.Flag{
+			cli.IntFlag{
+				Name:        "days, d",
+				Usage:       "number of `DAYS` before expiration",
+				Destination: &londocli.ExpDays,
+				Value:       90,
+			},
+		},
 	}
 
 	app *cli.App

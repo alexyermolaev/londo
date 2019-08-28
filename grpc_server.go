@@ -41,6 +41,10 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	}, nil
 }
 
+func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest, stream londopb.CertService_GetExpiringSubjectServer) error {
+	return nil
+}
+
 func (g *GRPCServer) DeleteSubject(ctx context.Context, req *londopb.DeleteSubjectRequest) (*londopb.DeleteSubjectResponse, error) {
 	s := req.GetSubject()
 
