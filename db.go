@@ -165,6 +165,21 @@ func (m *MongoDB) FineManySubjects(s []string) ([]Subject, error) {
 	return res, nil
 }
 
+func (m *MongoDB) UpdateUnreachable(subj *string, unreach *time.Time) error {
+	col := m.getSubjCollection()
+
+	filter := bson.M{"subject": subj}
+	update := bson.D{
+		{"$set", bson.D{
+			{"unreachable", unreach},
+		}},
+	}
+
+	_, err := col.UpdateOne(m.context, filter, update)
+
+	return err
+}
+
 func (m *MongoDB) getSubjCollection() *mongo.Collection {
 	return m.client.Database(m.Name).Collection("subjects")
 }

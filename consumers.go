@@ -236,10 +236,12 @@ func (l *Londo) ConsumeCheck() *Londo {
 		// TODO: unhardcode this via flag, config and env
 		if t > 168 && len(ips) == 0 {
 			// TODO: delete/revoke
+			d.Reject(false)
 		}
 
 		if len(ips) == 0 {
 			// TODO: update unreachable
+			e.Unresolvable = time.Now()
 		}
 
 		// TODO: we're good update targets
@@ -254,6 +256,16 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 
 		switch d.Type {
+		case DbUpdateUnreachSubjCmd:
+			var e CheckDNSEvent
+			if err := json.Unmarshal(d.Body, &e); err != nil {
+				return err, false
+			}
+
+			log.Infof("sub %s: update unreach %v", e.Subject, e.Unresolvable)
+
+			l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable)
+
 		case DbGetExpiringSubjectsCmd:
 			// TODO: need refactor to get rid of duplication
 			var e GetExpringSubjEvent
