@@ -39,6 +39,7 @@ const (
 	DbAddSubjComd            = "subj.add"
 	DbUpdateSubjComd         = "subj.update"
 	DbGetSubjectComd         = "subj.get"
+	DbGetAllSubjectsCmd      = "subj.get.all"
 	DbGetSubjectByTargetCmd  = "subj.get.taarget"
 	DbGetExpiringSubjectsCmd = "subj.get.expiring"
 
@@ -194,13 +195,15 @@ func (l *Londo) GRPCServer() *Londo {
 	return l
 }
 
-func (l *Londo) Run() {
+func (l *Londo) Run() error {
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 
 	<-s
 	log.Info("Goodbye, Captain Sheridan!")
 	l.shutdown(0)
+
+	return nil
 }
 
 func (l *Londo) RestAPIClient() *Londo {
