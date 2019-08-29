@@ -91,10 +91,11 @@ func (g *GRPCServer) RenewSubjects(
 			},
 		}
 
-		stream.Send(res)
-
-		return nil
+		return stream.Send(res)
 	}
+
+	// TODO: this method is incomplete
+
 	return nil
 }
 
