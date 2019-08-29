@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"sort"
-	"time"
 
 	"github.com/alexyermolaev/londo"
 	londocli "github.com/alexyermolaev/londo/cli"
@@ -11,9 +10,11 @@ import (
 	"github.com/urfave/cli"
 )
 
+// TODO: need to code scheduler for period collection of certificates
+
 const (
-	name  = "londo-dbd"
-	usage = "database client"
+	name  = "londo-collectd"
+	usage = "collects enrolled certificates"
 )
 
 var (
@@ -34,19 +35,16 @@ func main() {
 
 func defaultCommand(_ *cli.Context) error {
 	return londo.S(name).
-		DbService().
 		AMQPConnection().
+		RestAPIClient().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
 			amqp.ExchangeDirect, nil).
 		Declare(
-			londo.RenewExchange,
-			londo.RenewQueue,
-			amqp.ExchangeDirect, amqp.Table{
-				"x-message-ttl": int(59 * time.Second / time.Millisecond),
-			}).
-		ConsumeDbRPC().
+			londo.CollectExchange,
+			londo.CollectQueue,
+			amqp.ExchangeDirect, nil).
+		ConsumeCollect().
 		Run()
-
 }

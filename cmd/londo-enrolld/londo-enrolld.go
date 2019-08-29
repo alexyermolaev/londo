@@ -31,7 +31,7 @@ func main() {
 	}
 }
 
-func defaultCommand(c *cli.Context) error {
+func defaultCommand(_ *cli.Context) error {
 	return londo.S(name).
 		AMQPConnection().
 		RestAPIClient().

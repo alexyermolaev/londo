@@ -56,8 +56,8 @@ func main() {
 	}
 }
 
-func defaultCommand(c *cli.Context) error {
-	return londo.S("gRPC server").
+func defaultCommand(_ *cli.Context) error {
+	return londo.S(name).
 		AMQPConnection().
 		Declare(
 			londo.DbReplyExchange,
