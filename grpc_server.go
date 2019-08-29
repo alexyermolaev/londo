@@ -7,7 +7,7 @@ import (
 
 	"github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -94,7 +94,6 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 			return err
 		}
 		log.Infof("%s: %s -> renew", ip, s)
-		//g.Londo.PublishRenew(&rs)
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
@@ -399,7 +398,7 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 		return ctx, nil
 	}
 
-	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	token, err := grpcauth.AuthFromMD(ctx, "bearer")
 	if err != nil {
 		log.Errorf("%s: no token present", ip)
 		return nil, err
