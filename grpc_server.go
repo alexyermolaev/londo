@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	jwt "github.com/alexyermolaev/londo/jwt"
+	"github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	log "github.com/sirupsen/logrus"
@@ -71,7 +71,9 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-		g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
+		if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+			return err
+		}
 
 		rs := <-ch
 
@@ -83,7 +85,7 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		}
 		wg.Wait()
 
-		if err = g.Londo.Publish(RenewEvent{
+		if err = g.Londo.Publish("", "", RenewEvent{
 			ID:       rs.ID.Hex(),
 			Subject:  rs.Subject,
 			CertID:   rs.CertID,
@@ -136,11 +138,10 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
-	if err := g.Londo.Publish(GetExpringSubjEvent{Days: d}, addr, ""); err != nil {
+	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetExpiringSubjEvent{Days: d}, addr, DbGetExpiringSubjectsCmd); err != nil {
 		return err
 	}
 	log.Infof("%s: expiring subjects, %d days", ip, d)
-	//g.Londo.PublishDbExpEvent(d, addr)
 
 	for {
 		select {
@@ -217,7 +218,9 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
+	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+		return nil, err
+	}
 
 	rs := <-ch
 
@@ -230,7 +233,7 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 
 	wg.Wait()
 
-	if err = g.Londo.Publish(EnrollEvent{
+	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, EnrollEvent{
 		Subject:  subj.Subject,
 		AltNames: subj.AltNames,
 		Targets:  subj.Targets,
@@ -273,7 +276,9 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
+	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+		return nil, err
+	}
 
 	rs := <-ch
 
@@ -346,7 +351,14 @@ func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr stri
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
 	log.Debugf("request subject by %s", targets)
-	g.Londo.PublishDbCommand(&subj, DbGetSubjectByTargetCmd, addr)
+	if err := g.Londo.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		GetSubjectByTargetEvent{Target: targets},
+		addr, DbGetSubjectByTargetCmd); err != nil {
+		return err
+	}
+	//g.Londo.PublishDbCommand(&subj, DbGetSubjectByTargetCmd, addr)
 
 	for {
 		select {

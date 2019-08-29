@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -198,4 +199,10 @@ type Subject struct {
 	Unresolvable time.Time          `bson:"unresolvable"`
 	Targets      []string           `bson:"targets"`
 	AltNames     []string           `bson:"alt_names"`
+}
+
+func (Subject) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
 }

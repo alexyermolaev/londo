@@ -1,6 +1,15 @@
 package londo
 
-import "time"
+import (
+	"strconv"
+	"time"
+
+	"github.com/streadway/amqp"
+)
+
+type Event interface {
+	GetMessage() amqp.Publishing
+}
 
 type RenewEvent struct {
 	ID       string
@@ -8,6 +17,14 @@ type RenewEvent struct {
 	CertID   int
 	AltNames []string
 	Targets  []string
+}
+
+func (e RenewEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType:   ContentType,
+		CorrelationId: e.ID,
+		Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
+	}
 }
 
 type RevokeEvent struct {
@@ -20,6 +37,12 @@ type EnrollEvent struct {
 	Targets  []string
 }
 
+func (EnrollEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
+}
+
 type DeleteSubjEvent struct {
 	CertID int
 }
@@ -29,15 +52,33 @@ type CompleteEnrollEvent struct {
 	Certificate string
 }
 
-type GetSubjectEvenet struct {
+func (CompleteEnrollEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
+}
+
+type GetSubjectEvent struct {
 	Subject string
 }
 
-type GetSubjectByTarget struct {
+func (GetSubjectEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: contentType,
+	}
+}
+
+type GetSubjectByTargetEvent struct {
 	Target []string
 }
 
-type NewSubjectEvenet struct {
+func (GetSubjectByTargetEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
+}
+
+type NewSubjectEvent struct {
 	Subject    string
 	CSR        string
 	PrivateKey string
@@ -47,15 +88,34 @@ type NewSubjectEvenet struct {
 	Targets    []string
 }
 
+func (NewSubjectEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
+}
+
 type CollectEvent struct {
 	CertID int
 }
 
-type GetExpringSubjEvent struct {
+func (CollectEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
+}
+
+type GetExpiringSubjEvent struct {
 	Days int32
 }
 
-type ExpiringSubjEventResponse struct {
+func (GetExpiringSubjEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+		Type:        DbGetExpiringSubjectsCmd,
+	}
+}
+
+type ExpiringSubjectEvent struct {
 	Subject  string
 	NotAfter time.Time
 }
@@ -63,6 +123,12 @@ type ExpiringSubjEventResponse struct {
 type CheckDNSEvent struct {
 	Subject string
 	Targets []string
-	// TODO: it may not be possible to deserialze it and from JSON
+	// TODO: it may not be possible to deserialize it and from JSON
 	Unresolvable time.Time
+}
+
+func (CheckDNSEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
 }
