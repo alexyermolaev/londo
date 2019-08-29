@@ -46,24 +46,18 @@ func (g *GRPCServer) RenewSubjects(
 
 	s := req.GetSubject()
 
-	ip, addr, err := ParseIPAddr(stream.Context())
-	if err != nil {
-		return err
-	}
-
 	sr, err := g.setupRequest(stream.Context())
 	if err != nil {
 		return err
 	}
 
 	if s != "" {
-		log.Infof("%s: renew %s", ip, s)
-
-		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
+		log.Infof("%s: renew %s", sr.ip, s)
+		log.Infof("%s: sub %s -> queue %s", sr.ip, s, sr.addr)
 		if err := g.Londo.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
-			addr,
+			sr.addr,
 			DbGetSubjectCmd,
 			GetSubjectEvent{Subject: s},
 		); err != nil {
@@ -73,7 +67,7 @@ func (g *GRPCServer) RenewSubjects(
 		rs := <-sr.replyChannel
 
 		if rs.Subject == "" {
-			log.Errorf("%s: code %d, resp %s", ip, codes.NotFound, s)
+			log.Errorf("%s: code %d, resp %s", sr.ip, codes.NotFound, s)
 			return status.Errorf(
 				codes.NotFound,
 				fmt.Sprintf("%s not found", s))
@@ -89,7 +83,7 @@ func (g *GRPCServer) RenewSubjects(
 		}); err != nil {
 			return err
 		}
-		log.Infof("%s: %s -> renew", ip, s)
+		log.Infof("%s: %s -> renew", sr.ip, s)
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
@@ -126,33 +120,14 @@ func (g *GRPCServer) GetExpiringSubject(
 	}
 	log.Infof("%s: expiring subjects, %d days", sr.ip, d)
 
-	for {
-		select {
-		case rs := <-sr.replyChannel:
-			if rs.Subject == "" {
-				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
-
-				<-sr.doneChannel
-				sr.wg.Wait()
-				return status.Errorf(
-					codes.NotFound,
-					fmt.Sprintf("no subjects found"))
-			}
-
-			res := &londopb.GetExpringSubjectsResponse{
-				Subject: &londopb.ExpiringSubject{
-					Subject: rs.Subject,
-					ExpDate: rs.NotAfter.Unix(),
-				},
-			}
-			stream.Send(res)
-
-		case _ = <-sr.doneChannel:
-			sr.wg.Wait()
-			log.Infof("%s: close stream", sr.ip)
-			return nil
-		}
-	}
+	return g.getManyReplies(sr, func(rs Subject) error {
+		return stream.Send(&londopb.GetExpringSubjectsResponse{
+			Subject: &londopb.ExpiringSubject{
+				Subject: rs.Subject,
+				ExpDate: rs.NotAfter.Unix(),
+			},
+		})
+	})
 }
 
 func (g *GRPCServer) DeleteSubject(
@@ -210,7 +185,6 @@ func (g *GRPCServer) AddNewSubject(
 		return nil, err
 	}
 	log.Infof("%s: %s -> enroll", sr.ip, s)
-	//g.Londo.PublishNewSubject(&subj)
 
 	return &londopb.AddNewSubjectResponse{
 		Subject: s + " has been queued for enrollment",
@@ -279,36 +253,17 @@ func (g *GRPCServer) GetSubjectForTarget(
 		return err
 	}
 
-	for {
-		select {
-		case rs := <-sr.replyChannel:
-			if rs.Subject == "" {
-				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
-
-				<-sr.doneChannel
-				sr.wg.Wait()
-				return status.Errorf(
-					codes.NotFound,
-					fmt.Sprintf("no subjects found"))
-			}
-
-			res := &londopb.GetSubjectResponse{
-				Subject: &londopb.Subject{
-					Subject:     rs.Subject,
-					Certificate: rs.Certificate,
-					PrivateKey:  rs.PrivateKey,
-					AltNames:    rs.AltNames,
-					Targets:     rs.Targets,
-				},
-			}
-			stream.Send(res)
-
-		case _ = <-sr.doneChannel:
-			sr.wg.Wait()
-			log.Infof("%s: close stream", sr.ip)
-			return nil
-		}
-	}
+	return g.getManyReplies(sr, func(rs Subject) error {
+		return stream.Send(&londopb.GetSubjectResponse{
+			Subject: &londopb.Subject{
+				Subject:     rs.Subject,
+				Certificate: rs.Certificate,
+				PrivateKey:  rs.PrivateKey,
+				AltNames:    rs.AltNames,
+				Targets:     rs.Targets,
+			},
+		})
+	})
 
 }
 
@@ -333,36 +288,17 @@ func (g *GRPCServer) GetSubjectsByTarget(
 		return err
 	}
 
-	for {
-		select {
-		case rs := <-sr.replyChannel:
-			if rs.Subject == "" {
-				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
-
-				<-sr.doneChannel
-				sr.wg.Wait()
-				return status.Errorf(
-					codes.NotFound,
-					fmt.Sprintf("no subjects found"))
-			}
-
-			res := &londopb.GetSubjectResponse{
-				Subject: &londopb.Subject{
-					Subject:     rs.Subject,
-					Certificate: rs.Certificate,
-					PrivateKey:  rs.PrivateKey,
-					AltNames:    rs.AltNames,
-					Targets:     rs.Targets,
-				},
-			}
-			stream.Send(res)
-
-		case _ = <-sr.doneChannel:
-			sr.wg.Wait()
-			log.Infof("%s: close stream", sr.ip)
-			return nil
-		}
-	}
+	return g.getManyReplies(sr, func(rs Subject) error {
+		return stream.Send(&londopb.GetSubjectResponse{
+			Subject: &londopb.Subject{
+				Subject:     rs.Subject,
+				Certificate: rs.Certificate,
+				PrivateKey:  rs.PrivateKey,
+				AltNames:    rs.AltNames,
+				Targets:     rs.Targets,
+			},
+		})
+	})
 }
 
 func AuthIntercept(ctx context.Context) (context.Context, error) {
@@ -420,7 +356,7 @@ func (g *GRPCServer) setupRequest(ctx context.Context) (*requestSetup, error) {
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, rs.addr); err != nil {
 		return nil, status.Errorf(
-			codes.FailedPrecondition,
+			codes.Internal,
 			fmt.Sprint("server error"))
 	}
 
@@ -429,4 +365,30 @@ func (g *GRPCServer) setupRequest(ctx context.Context) (*requestSetup, error) {
 	g.Londo.ConsumeGrpcReplies(addr, rs.replyChannel, rs.doneChannel, &rs.wg)
 
 	return rs, nil
+}
+
+func (g *GRPCServer) getManyReplies(sr *requestSetup, f func(rs Subject) error) error {
+	for {
+		select {
+		case rs := <-sr.replyChannel:
+			if rs.Subject == "" {
+				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
+
+				<-sr.doneChannel
+				sr.wg.Wait()
+				return status.Errorf(
+					codes.NotFound,
+					fmt.Sprintf("no subjects found"))
+			}
+
+			if err := f(rs); err != nil {
+				return err
+			}
+
+		case _ = <-sr.doneChannel:
+			sr.wg.Wait()
+			log.Infof("%s: close stream", sr.ip)
+			return nil
+		}
+	}
 }
