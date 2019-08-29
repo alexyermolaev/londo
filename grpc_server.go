@@ -51,7 +51,6 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 
 	if s != "" {
 		log.Infof("%s: renew %s", ip, s)
-		subj := Subject{Subject: s}
 
 		if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 			log.Error(err)
@@ -250,7 +249,6 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 
 func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
 	s := req.GetSubject()
-	subj := Subject{Subject: s}
 
 	ip, addr, err := ParseIPAddr(ctx)
 	if err != nil {
@@ -331,8 +329,6 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 }
 
 func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr string, stream londopb.CertService_GetSubjectsByTargetServer) error {
-	subj := Subject{Targets: targets}
-
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return status.Errorf(
 			codes.FailedPrecondition,
@@ -358,7 +354,6 @@ func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr stri
 		addr, DbGetSubjectByTargetCmd); err != nil {
 		return err
 	}
-	//g.Londo.PublishDbCommand(&subj, DbGetSubjectByTargetCmd, addr)
 
 	for {
 		select {
