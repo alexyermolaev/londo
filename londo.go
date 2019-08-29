@@ -63,7 +63,7 @@ var (
 	DefaultFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:        "debug, d",
-			Usage:       "turn `DEBUG` on and off",
+			Usage:       "enables debug level logging",
 			EnvVar:      "LONDO_DEBUG",
 			Destination: &Debug,
 		},
