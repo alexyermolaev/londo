@@ -76,7 +76,8 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err, false
 		}
 
-		if err := l.Publish(CollectExchange, CollectQueue, CollectEvent{CertID: j.SslId}, "", ""); err != nil {
+		if err := l.Publish(
+			CollectExchange, CollectQueue, "", "", CollectEvent{CertID: j.SslId}); err != nil {
 			return nil, false
 		}
 		log.Info("sub %d -> collect", j.SslId)
@@ -84,7 +85,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
 
-		if err := l.Publish(DbReplyExchange, DbReplyQueue, NewSubjectEvent{
+		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbAddSubjCmd, NewSubjectEvent{
 			Subject:    s.Subject,
 			CSR:        s.CSR,
 			PrivateKey: s.PrivateKey,
@@ -92,7 +93,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			OrderID:    s.OrderID,
 			AltNames:   s.AltNames,
 			Targets:    s.Targets,
-		}, "", DbAddSubjCmd); err != nil {
+		}); err != nil {
 			return err, false
 		}
 
@@ -134,8 +135,9 @@ func (l *Londo) ConsumeRenew() *Londo {
 		if err := l.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
+			"",
+			DbDeleteSubjCmd,
 			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
-			"", DbDeleteSubjCmd,
 		); err != nil {
 			d.Reject(false)
 			return err, false
@@ -143,11 +145,11 @@ func (l *Londo) ConsumeRenew() *Londo {
 
 		log.Infof("requested deletion of %s", s.Subject)
 
-		if err := l.Publish(EnrollExchange, EnrollQueue, EnrollEvent{
+		if err := l.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 			Subject:  s.Subject,
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
-		}, "", ""); err != nil {
+		}); err != nil {
 			return nil, false
 		}
 		//l.PublishNewSubject(&s)
@@ -181,10 +183,10 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}
 
 		s.Certificate = string(res.Body())
-		if err := l.Publish(DbReplyExchange, DbReplyQueue, CompleteEnrollEvent{
+		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateSubjCmd, CompleteEnrollEvent{
 			CertID:      s.CertID,
 			Certificate: s.Certificate,
-		}, "", DbUpdateSubjCmd); err != nil {
+		}); err != nil {
 			return err, false
 		}
 
@@ -252,7 +254,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if len(ips) == 0 {
 			e.Unresolvable = time.Now()
-			if err := l.Publish(CheckExchange, CheckQueue, &e, "", ""); err != nil {
+			if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
 				return err, false
 			}
 			return nil, false
@@ -263,7 +265,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 			e.Targets = append(e.Targets, ip.String())
 		}
 
-		if err := l.Publish(CheckExchange, CheckQueue, &e, "", ""); err != nil {
+		if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
 			return err, false
 		}
 
@@ -310,7 +312,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			if length == -1 {
 				var s Subject
 
-				if err := l.Publish(GRPCServerExchange, d.ReplyTo, &s, d.ReplyTo, CloseChannelCmd); err != nil {
+				if err := l.Publish(
+					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 					return err, false
 				}
 				log.Infof("sent none -> %s queue", d.ReplyTo)
@@ -323,7 +326,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					cmd = CloseChannelCmd
 				}
 
-				if err := l.Publish(GRPCServerExchange, d.ReplyTo, exp[i], d.ReplyTo, cmd); err != nil {
+				if err := l.Publish(
+					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, exp[i]); err != nil {
 					return err, false
 				}
 				log.Infof("sent %s -> %s queue", exp[i].Subject, d.ReplyTo)
@@ -349,7 +353,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			if length == -1 {
 				var s Subject
 
-				if err := l.Publish(GRPCServerExchange, d.ReplyTo, &s, d.ReplyTo, CloseChannelCmd); err != nil {
+				if err := l.Publish(
+					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 					return err, false
 				}
 				log.Infof("sent none -> %s queue", d.ReplyTo)
@@ -362,7 +367,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					cmd = CloseChannelCmd
 				}
 
-				if err := l.Publish(GRPCServerExchange, d.ReplyTo, &subjs[i], d.ReplyTo, cmd); err != nil {
+				if err := l.Publish(
+					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, &subjs[i]); err != nil {
 					return err, false
 				}
 				log.Infof("sent %s -> %s queue", subjs[i].Subject, d.ReplyTo)
@@ -376,7 +382,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			subj, err := l.Db.FindSubject(e.Subject)
 
-			if err := l.Publish(GRPCServerExchange, d.ReplyTo, &subj, d.ReplyTo, CloseChannelCmd); err != nil {
+			if err := l.Publish(
+				GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &subj); err != nil {
 				return err, false
 			}
 

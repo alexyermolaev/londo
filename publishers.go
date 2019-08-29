@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 )
 
-func (l *Londo) Publish(exchange string, queue string, e Event, reply string, cmd string) error {
+func (l *Londo) Publish(exchange string, queue string, reply string, cmd string, e Event) error {
 	msg := e.GetMessage()
 	msg.ContentType = ContentType
 

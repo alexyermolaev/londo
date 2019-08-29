@@ -75,9 +75,9 @@ func (g *GRPCServer) RenewSubjects(
 		if err := g.Londo.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
-			GetSubjectEvent{Subject: s},
 			addr,
 			DbGetSubjectCmd,
+			GetSubjectEvent{Subject: s},
 		); err != nil {
 			return err
 		}
@@ -92,13 +92,13 @@ func (g *GRPCServer) RenewSubjects(
 		}
 		wg.Wait()
 
-		if err = g.Londo.Publish("", "", RenewEvent{
+		if err = g.Londo.Publish("", "", "", "", RenewEvent{
 			ID:       rs.ID.Hex(),
 			Subject:  rs.Subject,
 			CertID:   rs.CertID,
 			AltNames: rs.AltNames,
 			Targets:  rs.Targets,
-		}, "", ""); err != nil {
+		}); err != nil {
 			return err
 		}
 		log.Infof("%s: %s -> renew", ip, s)
@@ -148,9 +148,10 @@ func (g *GRPCServer) GetExpiringSubject(
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
-		GetExpiringSubjEvent{Days: d},
 		addr,
-		DbGetExpiringSubjectsCmd); err != nil {
+		DbGetExpiringSubjectsCmd,
+		GetExpiringSubjEvent{Days: d},
+	); err != nil {
 		return err
 	}
 	log.Infof("%s: expiring subjects, %d days", ip, d)
@@ -232,11 +233,7 @@ func (g *GRPCServer) AddNewSubject(
 	log.Infof("%s: add %s", ip, s)
 	log.Infof("%s: get %s -> queue %s", ip, s, addr)
 	if err := g.Londo.Publish(
-		DbReplyExchange,
-		DbReplyQueue,
-		GetSubjectEvent{Subject: s},
-		addr,
-		DbGetSubjectCmd); err != nil {
+		DbReplyExchange, DbReplyQueue, addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
 	}
 
@@ -251,11 +248,11 @@ func (g *GRPCServer) AddNewSubject(
 
 	wg.Wait()
 
-	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, EnrollEvent{
+	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 		Subject:  subj.Subject,
 		AltNames: subj.AltNames,
 		Targets:  subj.Targets,
-	}, "", ""); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	log.Infof("%s: %s -> enroll", ip, s)
@@ -295,12 +292,7 @@ func (g *GRPCServer) GetSubject(
 	log.Infof("%s: get sub %s", ip, s)
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
 	if err := g.Londo.Publish(
-		DbReplyExchange,
-		DbReplyQueue,
-		GetSubjectEvent{Subject: s},
-		addr,
-		DbGetSubjectCmd,
-	); err != nil {
+		DbReplyExchange, DbReplyQueue, addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
 	}
 
@@ -382,8 +374,10 @@ func (g *GRPCServer) getSubjectsForIPAddr(
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
+		addr,
+		DbGetSubjectByTargetCmd,
 		GetSubjectByTargetEvent{Target: targets},
-		addr, DbGetSubjectByTargetCmd); err != nil {
+	); err != nil {
 		return err
 	}
 
