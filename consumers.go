@@ -258,8 +258,8 @@ func (l *Londo) ConsumeCheck() *Londo {
 		// cannot resolve ip but no unreachable date set
 		if len(ips) == 0 {
 			e.Unresolvable = time.Now()
-			// FIXME: this is a bug, should go to db instead
-			if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
+			if err := l.Publish(
+				DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
 				return err, false
 			}
 			return nil, false
@@ -282,8 +282,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 			e.Targets = append(e.Targets, ip.String())
 		}
 
-		// FIXME: same as above
-		if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
+		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
 			return err, false
 		}
 
@@ -293,6 +292,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 	return l
 }
 
+// TODO: it is too big now
 func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 		switch d.Type {
@@ -302,10 +302,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("sub %s: update unreach %v", e.Subject, e.Unresolvable)
+			log.Infof("sub %s: update status", e.Subject)
 
-			// TODO: need to change signature
-			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable); err != nil {
+			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable, &e.NoMatch); err != nil {
 				log.Error(err)
 				return err, false
 			}

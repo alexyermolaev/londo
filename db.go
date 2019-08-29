@@ -166,13 +166,15 @@ func (m *MongoDB) FineManySubjects(s []string) ([]Subject, error) {
 	return res, nil
 }
 
-func (m *MongoDB) UpdateUnreachable(subj *string, unreach *time.Time) error {
+func (m *MongoDB) UpdateUnreachable(subj *string, unreach *time.Time, match *bool) error {
 	col := m.getSubjCollection()
 
 	filter := bson.M{"subject": subj}
 	update := bson.D{
 		{"$set", bson.D{
-			{"unreachable", unreach},
+			{"unreachable_at", unreach},
+			{"no_match", match},
+			{"updated_at", time.Now()},
 		}},
 	}
 
@@ -186,22 +188,22 @@ func (m *MongoDB) getSubjCollection() *mongo.Collection {
 }
 
 type Subject struct {
-	ID           primitive.ObjectID `bson:"_id"`
-	Subject      string             `bson:"subject"`
-	Port         int32              `bson:"port"`
-	CSR          string             `bson:"csr"`
-	PrivateKey   string             `bson:"private_key"`
-	Certificate  string             `bson:"certificate"`
-	Serial       int64              `bson:"serial"`
-	CertID       int                `bson:"cert_id"`
-	OrderID      string             `bson:"order_id"`
-	NotAfter     time.Time          `bson:"not_after"`
-	CreatedAt    time.Time          `bson:"created_at"`
-	UpdatedAt    time.Time          `bson:"updated_at"`
-	Unresolvable time.Time          `bson:"unresolvable"`
-	Targets      []string           `bson:"targets"`
-	AltNames     []string           `bson:"alt_names"`
-	NoMatch      bool               `bson:"no_match"`
+	ID             primitive.ObjectID `bson:"_id"`
+	Subject        string             `bson:"subject"`
+	Port           int32              `bson:"port"`
+	CSR            string             `bson:"csr"`
+	PrivateKey     string             `bson:"private_key"`
+	Certificate    string             `bson:"certificate"`
+	Serial         int64              `bson:"serial"`
+	CertID         int                `bson:"cert_id"`
+	OrderID        string             `bson:"order_id"`
+	NotAfter       time.Time          `bson:"not_after"`
+	CreatedAt      time.Time          `bson:"created_at"`
+	UpdatedAt      time.Time          `bson:"updated_at"`
+	UnresolvableAT time.Time          `bson:"unresolvable_at"`
+	Targets        []string           `bson:"targets"`
+	AltNames       []string           `bson:"alt_names"`
+	NoMatch        bool               `bson:"no_match"`
 }
 
 func (Subject) GetMessage() amqp.Publishing {
