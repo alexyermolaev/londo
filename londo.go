@@ -43,7 +43,7 @@ const (
 	DbGetAllSubjectsCmd      = "subj.get.all"
 	DbGetSubjectByTargetCmd  = "subj.get.target"
 	DbGetExpiringSubjectsCmd = "subj.get.expiring"
-	DbUpdateUnreachSubjCmd   = "subj.update.unreach"
+	DbUpdateCertStatusCmd    = "subj.update.status"
 
 	// Tell consumer to close channel
 	CloseChannelCmd = "stop"

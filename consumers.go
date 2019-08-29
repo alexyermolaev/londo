@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 	"net"
 	"net/http"
 	"sync"
@@ -230,7 +231,7 @@ func (l *Londo) ConsumeGrpcReplies(
 
 func (l *Londo) ConsumeCheck() *Londo {
 	go l.AMQP.Consume(CheckQueue, nil, func(d amqp.Delivery) (error, bool) {
-		var e CheckDNSEvent
+		var e CheckCertEvent
 		if err := json.Unmarshal(d.Body, &e); err != nil {
 			return err, false
 		}
@@ -264,7 +265,16 @@ func (l *Londo) ConsumeCheck() *Londo {
 			return nil, false
 		}
 
-		// TODO: connect to remote and inspect its certificate
+		// Verify remote host serial number. Serial numbers have to match
+		serial, err := GetCertSerialNumber(e.Subject, e.Port)
+		if err != nil {
+			e.Unresolvable = time.Now()
+		} else {
+			i := big.NewInt(e.Serial)
+			if serial.Cmp(i) != 0 {
+				e.NoMatch = true
+			}
+		}
 
 		// Looking good, update targets
 		e.Targets = nil
@@ -286,14 +296,15 @@ func (l *Londo) ConsumeCheck() *Londo {
 func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
 		switch d.Type {
-		case DbUpdateUnreachSubjCmd:
-			var e CheckDNSEvent
+		case DbUpdateCertStatusCmd:
+			var e CheckCertEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err, false
 			}
 
 			log.Infof("sub %s: update unreach %v", e.Subject, e.Unresolvable)
 
+			// TODO: need to change signature
 			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable); err != nil {
 				log.Error(err)
 				return err, false

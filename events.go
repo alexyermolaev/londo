@@ -115,13 +115,16 @@ func (ExpiringSubjectEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{}
 }
 
-type CheckDNSEvent struct {
+type CheckCertEvent struct {
 	Subject string
+	Serial  int64
+	Port    int
+	NoMatch bool
 	Targets []string
 	// TODO: it may not be possible to deserialize it and from JSON
 	Unresolvable time.Time
 }
 
-func (CheckDNSEvent) GetMessage() amqp.Publishing {
+func (CheckCertEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{}
 }

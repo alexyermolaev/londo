@@ -192,6 +192,7 @@ type Subject struct {
 	CSR          string             `bson:"csr"`
 	PrivateKey   string             `bson:"private_key"`
 	Certificate  string             `bson:"certificate"`
+	Serial       int64              `bson:"serial"`
 	CertID       int                `bson:"cert_id"`
 	OrderID      string             `bson:"order_id"`
 	NotAfter     time.Time          `bson:"not_after"`
@@ -200,6 +201,7 @@ type Subject struct {
 	Unresolvable time.Time          `bson:"unresolvable"`
 	Targets      []string           `bson:"targets"`
 	AltNames     []string           `bson:"alt_names"`
+	NoMatch      bool               `bson:"no_match"`
 }
 
 func (Subject) GetMessage() amqp.Publishing {
