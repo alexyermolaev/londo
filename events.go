@@ -28,7 +28,14 @@ func (e RenewEvent) GetMessage() amqp.Publishing {
 }
 
 type RevokeEvent struct {
+	ID     string
 	CertID int
+}
+
+func (RevokeEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{
+		ContentType: ContentType,
+	}
 }
 
 type EnrollEvent struct {

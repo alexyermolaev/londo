@@ -126,7 +126,11 @@ func (g *GRPCServer) GetExpiringSubject(
 		return err
 	}
 
-	log.Infof("%s: get expiring subs", ip)
+	var (
+		ch   = make(chan Subject)
+		done = make(chan struct{})
+		wg   sync.WaitGroup
+	)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		log.Error(err)
@@ -137,15 +141,10 @@ func (g *GRPCServer) GetExpiringSubject(
 
 	log.Debug("creating consumer")
 
-	var (
-		ch   = make(chan Subject)
-		done = make(chan struct{})
-		wg   sync.WaitGroup
-	)
-
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
+	log.Infof("%s: get expiring subs", ip)
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
@@ -201,7 +200,7 @@ func (g *GRPCServer) DeleteSubject(
 
 func (g *GRPCServer) AddNewSubject(
 	ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.AddNewSubjectResponse, error) {
-	// FIXME: code duplication
+
 	s := req.GetSubject().Subject
 	subj := Subject{
 		Subject:  s,
@@ -209,12 +208,15 @@ func (g *GRPCServer) AddNewSubject(
 		Targets:  req.GetSubject().Targets,
 	}
 
+	var (
+		ch = make(chan Subject)
+		wg sync.WaitGroup
+	)
+
 	ip, addr, err := ParseIPAddr(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Infof("%s: get sub %s", ip, s)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return nil, status.Errorf(
@@ -224,15 +226,11 @@ func (g *GRPCServer) AddNewSubject(
 
 	log.Debug("creating consumer")
 
-	var (
-		ch = make(chan Subject)
-		wg sync.WaitGroup
-	)
-
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
-	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
+	log.Infof("%s: add %s", ip, s)
+	log.Infof("%s: get %s -> queue %s", ip, s, addr)
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
@@ -273,12 +271,15 @@ func (g *GRPCServer) GetSubject(
 
 	s := req.GetSubject()
 
+	var (
+		ch = make(chan Subject)
+		wg sync.WaitGroup
+	)
+
 	ip, addr, err := ParseIPAddr(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	log.Infof("%s: get sub %s", ip, s)
 
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return nil, status.Errorf(
@@ -288,14 +289,10 @@ func (g *GRPCServer) GetSubject(
 
 	log.Debug("creating consumer")
 
-	var (
-		ch = make(chan Subject)
-		wg sync.WaitGroup
-	)
-
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
+	log.Infof("%s: get sub %s", ip, s)
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
 	if err := g.Londo.Publish(
 		DbReplyExchange,
@@ -341,7 +338,7 @@ func (g *GRPCServer) GetSubjectForTarget(
 	var targets []string
 	targets = append(targets, ip)
 
-	log.Infof("%s : get subjects by %s", ip, ip)
+	log.Infof("%s: get subs by %s", ip, ip)
 
 	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
 }
@@ -356,7 +353,7 @@ func (g *GRPCServer) GetSubjectsByTarget(
 		return err
 	}
 
-	log.Infof("%s : get subjects by %s", ip, targets)
+	log.Infof("%s: get subs by %s", ip, targets)
 
 	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
 }

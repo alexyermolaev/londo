@@ -131,28 +131,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return err, false
 		}
 
-		// TODO: this doesn't belong here
-		e := DeleteSubjEvent{
-			CertID: s.CertID,
-		}
-
-		// The error should never happen, or should it?
-		j, err := json.Marshal(&e)
-		if err != nil {
-			err = d.Reject(false)
-			return err, false
-		}
-
-		if err := l.AMQP.Emit(
+		if err := l.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
-			amqp.Publishing{
-				ContentType:   "application/json",
-				Type:          DbDeleteSubjCmd,
-				CorrelationId: d.CorrelationId,
-				Body:          j,
-			}); err != nil {
-			err = d.Reject(false)
+			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
+			"", DbDeleteSubjCmd,
+		); err != nil {
+			d.Reject(false)
 			return err, false
 		}
 
@@ -223,7 +208,7 @@ func (l *Londo) ConsumeGrpcReplies(
 		}
 
 		if s.Subject != "" {
-			log.Infof("received %s", s.Subject)
+			log.Infof("<- %s", s.Subject)
 		}
 		ch <- s
 
@@ -469,10 +454,10 @@ func (l *Londo) createNewSubject(d *amqp.Delivery) (string, error) {
 }
 
 func (l *Londo) deleteSubject(d *amqp.Delivery) (int, error) {
-	var e DeleteSubjEvent
+	var e RevokeEvent
 	if err := json.Unmarshal(d.Body, &e); err != nil {
 		return 0, err
 	}
 
-	return e.CertID, l.Db.DeleteSubject(d.CorrelationId, e.CertID)
+	return e.CertID, l.Db.DeleteSubject(e.ID, e.CertID)
 }
