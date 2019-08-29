@@ -76,7 +76,11 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err, false
 		}
 
-		l.PublishCollect(j.SslId)
+		if err := l.Publish(CollectEvent{CertID: j.SslId}, ""); err != nil {
+			return nil, false
+		}
+		log.Info("sub %d -> collect", j.SslId)
+		// l.PublishCollect(j.SslId)
 
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
@@ -118,6 +122,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return err, false
 		}
 
+		// TODO: this doesn't belong here
 		e := DeleteSubjEvent{
 			CertID: s.CertID,
 		}
@@ -144,7 +149,14 @@ func (l *Londo) ConsumeRenew() *Londo {
 
 		log.Infof("requested deletion of %s", s.Subject)
 
-		l.PublishNewSubject(&s)
+		if err := l.Publish(EnrollEvent{
+			Subject:  s.Subject,
+			AltNames: s.AltNames,
+			Targets:  s.Targets,
+		}, ""); err != nil {
+			return nil, false
+		}
+		//l.PublishNewSubject(&s)
 		log.Infof("sent %s subject for new enrollment", s.Subject)
 
 		return nil, false
@@ -241,7 +253,8 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if len(ips) == 0 {
 			e.Unresolvable = time.Now()
-			l.PublishUpdateDNSResult(&e)
+			l.Publish(&e, "")
+			//l.PublishUpdateDNSResult(&e)
 			return nil, false
 		}
 
@@ -249,7 +262,8 @@ func (l *Londo) ConsumeCheck() *Londo {
 		for _, ip := range ips {
 			e.Targets = append(e.Targets, ip.String())
 		}
-		l.PublishUpdateDNSResult(&e)
+		l.Publish(&e, "")
+		//l.PublishUpdateDNSResult(&e)
 
 		return nil, false
 	})

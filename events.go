@@ -3,6 +3,7 @@ package londo
 import "time"
 
 type RenewEvent struct {
+	ID       string
 	Subject  string
 	CertID   int
 	AltNames []string

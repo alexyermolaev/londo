@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -9,133 +10,55 @@ import (
 	"github.com/streadway/amqp"
 )
 
-//
-//  Not needed. This is a task for a separate microservice or admin cli
-//
-// func (l *Londo) PublishExpiringCerts() *Londo {
-// 	cron := gron.New()
-
-// 	cron.AddFunc(gron.Every(1*time.Hour), func() {
-// 		exp, err := l.Db.FindExpiringSubjects(720)
-// 		fail(err)
-
-// 		for _, e := range exp {
-// 			l.PublishRenew(e)
-// 		}
-// 	})
-
-// 	cron.Start()
-
-// 	return l
-// }
-
-func (l *Londo) PublishRenew(s *Subject) *Londo {
-	re := RenewEvent{
-		Subject:  s.Subject,
-		CertID:   s.CertID,
-		AltNames: s.AltNames,
-		Targets:  s.Targets,
-	}
-
-	j, err := json.Marshal(&re)
-	if err != nil {
-		log.Error(err)
-		return l
-	}
-
-	if err = l.AMQP.Emit(
-		RenewExchange,
-		RenewQueue,
-		amqp.Publishing{
-			ContentType:   ContentType,
-			CorrelationId: s.ID.Hex(),
-			Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-			Body:          j,
-		}); err != nil {
-		log.Error(err)
-		return l
-	}
-
-	log.Infof("published %s", s.Subject)
-
-	return l
-}
-
-func (l *Londo) PublishNewSubject(s *Subject) *Londo {
-	e := EnrollEvent{
-		Subject:  s.Subject,
-		AltNames: s.AltNames,
-		Targets:  s.Targets,
-	}
+func (l *Londo) Publish(e interface{}, reply string) error {
+	var (
+		ex, q string
+	)
 
 	j, err := json.Marshal(&e)
 	if err != nil {
-		log.Error(err)
-		return l
+		return err
 	}
 
-	if err := l.AMQP.Emit(
-		EnrollExchange,
-		EnrollQueue,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Body:        j,
-		}); err != nil {
-		log.Error(err)
-		return l
+	msg := amqp.Publishing{
+		ContentType: ContentType,
+		Body:        j,
 	}
 
-	log.Infof("enrolling %s subject", e.Subject)
+	switch e.(type) {
+	case CollectEvent:
+		ex = CollectExchange
+		q = CollectQueue
 
-	return l
-}
+	case CheckDNSEvent:
+		ex = DbReplyExchange
+		q = DbReplyQueue
 
-func (l *Londo) PublishCollect(crtId int) *Londo {
-	e := CollectEvent{CertID: crtId}
+	case GetExpringSubjEvent:
+		ex = DbReplyExchange
+		q = DbReplyQueue
+		msg.Type = DbGetExpiringSubjectsCmd
+		msg.ReplyTo = reply
 
-	j, err := json.Marshal(&e)
-	if err != nil {
-		log.Error(err)
-		return l
+	case EnrollEvent:
+		ex = EnrollExchange
+		q = EnrollQueue
+
+	case RenewEvent:
+		ex = RenewExchange
+		q = RenewQueue
+		msg.CorrelationId = e.(RenewEvent).ID
+		msg.Expiration = strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix()))
+
+	default:
+		return errors.New("unknown event")
 	}
 
-	if err := l.AMQP.Emit(
-		CollectExchange,
-		CollectQueue,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Body:        j,
-		}); err != nil {
-		log.Error(err)
-		return l
+	if err := l.AMQP.Emit(ex, q, msg); err != nil {
+		return err
 	}
 
-	log.Infof("%d has been queued up to be collected", e.CertID)
-
-	return l
-}
-
-func (l *Londo) PublishUpdateDNSResult(e *CheckDNSEvent) *Londo {
-	j, err := json.Marshal(&e)
-	if err != nil {
-		log.Error(err)
-		return l
-	}
-
-	if err := l.AMQP.Emit(
-		DbReplyExchange,
-		DbReplyQueue,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Body:        j,
-		}); err != nil {
-		log.Error(err)
-		return l
-	}
-
-	log.Info("sub %s unreach %v -> db", e.Subject, e.Unresolvable)
-
-	return l
+	return nil
 }
 
 func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo {
@@ -153,32 +76,7 @@ func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo
 			Body:        j,
 		}); err != nil {
 		log.Error(err)
-		return l
-	}
 
-	return l
-}
-
-// TODO: db commands thing needs to be redone in a better way. need to stop hacking.
-func (l *Londo) PublishDbExpEvent(days int32, reply string) *Londo {
-	e := GetExpringSubjEvent{Days: days}
-
-	j, err := json.Marshal(&e)
-	if err != nil {
-		log.Error(err)
-		return l
-	}
-
-	if err := l.AMQP.Emit(
-		DbReplyExchange,
-		DbReplyQueue,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Type:        DbGetExpiringSubjectsCmd,
-			ReplyTo:     reply,
-			Body:        j,
-		}); err != nil {
-		log.Error(err)
 		return l
 	}
 

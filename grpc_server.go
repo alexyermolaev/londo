@@ -83,8 +83,17 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		}
 		wg.Wait()
 
+		if err = g.Londo.Publish(RenewEvent{
+			ID:       rs.ID.Hex(),
+			Subject:  rs.Subject,
+			CertID:   rs.CertID,
+			AltNames: rs.AltNames,
+			Targets:  rs.Targets,
+		}, ""); err != nil {
+			return err
+		}
 		log.Infof("%s: %s -> renew", ip, s)
-		g.Londo.PublishRenew(&rs)
+		//g.Londo.PublishRenew(&rs)
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
@@ -127,7 +136,11 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
-	g.Londo.PublishDbExpEvent(d, addr)
+	if err := g.Londo.Publish(GetExpringSubjEvent{Days: d}, addr); err != nil {
+		return err
+	}
+	log.Infof("%s: expiring subjects, %d days", ip, d)
+	//g.Londo.PublishDbExpEvent(d, addr)
 
 	for {
 		select {
@@ -217,8 +230,15 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 
 	wg.Wait()
 
+	if err = g.Londo.Publish(EnrollEvent{
+		Subject:  subj.Subject,
+		AltNames: subj.AltNames,
+		Targets:  subj.Targets,
+	}, ""); err != nil {
+		return nil, err
+	}
 	log.Infof("%s: %s -> enroll", ip, s)
-	g.Londo.PublishNewSubject(&subj)
+	//g.Londo.PublishNewSubject(&subj)
 
 	return &londopb.AddNewSubjectResponse{
 		Subject: s + " has been queued for enrollment",
