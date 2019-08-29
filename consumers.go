@@ -246,25 +246,33 @@ func (l *Londo) ConsumeCheck() *Londo {
 			return err, false
 		}
 
+		// Cannot resolve and unreachable date is too old
+		// delete and revoke certificate
 		// TODO: unhardcode this via flag, config and env
 		if t > 168 && len(ips) == 0 {
 			// TODO: delete/revoke
 			d.Reject(false)
 		}
 
+		// cannot resolve ip but no unreachable date set
 		if len(ips) == 0 {
 			e.Unresolvable = time.Now()
+			// FIXME: this is a bug, should go to db instead
 			if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
 				return err, false
 			}
 			return nil, false
 		}
 
+		// TODO: connect to remote and inspect its certificate
+
+		// Looking good, update targets
 		e.Targets = nil
 		for _, ip := range ips {
 			e.Targets = append(e.Targets, ip.String())
 		}
 
+		// FIXME: same as above
 		if err := l.Publish(CheckExchange, CheckQueue, "", "", &e); err != nil {
 			return err, false
 		}

@@ -5,11 +5,14 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"math/big"
+	"strconv"
 )
 
 const (
@@ -86,4 +89,13 @@ func encodeBuffer(block *pem.Block) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func GetCertSerialNumber(subject string, port int) (*big.Int, error) {
+	conn, err := tls.Dial("tcp", subject+":"+strconv.Itoa(port), &tls.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	return conn.ConnectionState().PeerCertificates[0].SerialNumber, nil
 }

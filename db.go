@@ -188,6 +188,7 @@ func (m *MongoDB) getSubjCollection() *mongo.Collection {
 type Subject struct {
 	ID           primitive.ObjectID `bson:"_id"`
 	Subject      string             `bson:"subject"`
+	Port         int32              `bson:"port"`
 	CSR          string             `bson:"csr"`
 	PrivateKey   string             `bson:"private_key"`
 	Certificate  string             `bson:"certificate"`

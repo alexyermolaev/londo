@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	name  = "londo-chckerd"
+	name  = "londo-checkerd"
 	usage = "checks DNS records of all subjects"
 )
 
