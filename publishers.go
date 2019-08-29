@@ -10,7 +10,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func (l *Londo) Publish(e interface{}, reply string) error {
+func (l *Londo) Publish(e interface{}, reply string, cmd string) error {
 	var (
 		ex, q string
 	)
@@ -50,6 +50,11 @@ func (l *Londo) Publish(e interface{}, reply string) error {
 		msg.CorrelationId = e.(RenewEvent).ID
 		msg.Expiration = strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix()))
 
+	case Subject:
+		ex = GRPCServerExchange
+		q = reply
+		msg.Type = cmd
+
 	default:
 		return errors.New("unknown event")
 	}
@@ -61,29 +66,7 @@ func (l *Londo) Publish(e interface{}, reply string) error {
 	return nil
 }
 
-func (l *Londo) PublishReplySubject(s *Subject, reply string, cmd string) *Londo {
-	j, err := json.Marshal(&s)
-	if err != nil {
-		log.Errorf("error: %v", err)
-	}
-
-	if err := l.AMQP.Emit(
-		GRPCServerExchange,
-		reply,
-		amqp.Publishing{
-			ContentType: ContentType,
-			Type:        cmd,
-			Body:        j,
-		}); err != nil {
-		log.Error(err)
-
-		return l
-	}
-
-	return l
-}
-
-func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
+func (l *Londo) PublishDbCommand(s *Subject, cmd string, reply string) *Londo {
 	var logMsg string
 	var e interface{}
 
@@ -91,10 +74,10 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 	case DbGetSubjectByTargetCmd:
 		e = GetSubjectByTarget{Target: s.Targets}
 
-	case DbGetSubjectComd:
+	case DbGetSubjectCmd:
 		e = GetSubjectEvenet{Subject: s.Subject}
 
-	case DbAddSubjComd:
+	case DbAddSubjCmd:
 		e = NewSubjectEvenet{
 			Subject:    s.Subject,
 			CSR:        s.CSR,
@@ -107,7 +90,7 @@ func (l *Londo) PublishDbCommand(cmd string, s *Subject, reply string) *Londo {
 
 		logMsg = "letting db know that " + s.Subject + " needs to be created."
 
-	case DbUpdateSubjComd:
+	case DbUpdateSubjCmd:
 		e = CompleteEnrollEvent{
 			CertID:      s.CertID,
 			Certificate: s.Certificate,

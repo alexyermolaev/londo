@@ -76,16 +76,15 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			return err, false
 		}
 
-		if err := l.Publish(CollectEvent{CertID: j.SslId}, ""); err != nil {
+		if err := l.Publish(CollectEvent{CertID: j.SslId}, "", ""); err != nil {
 			return nil, false
 		}
 		log.Info("sub %d -> collect", j.SslId)
-		// l.PublishCollect(j.SslId)
 
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
 
-		l.PublishDbCommand(DbAddSubjComd, &s, "")
+		l.PublishDbCommand(&s, DbAddSubjCmd, "")
 
 		return nil, false
 	})
@@ -139,7 +138,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			DbReplyQueue,
 			amqp.Publishing{
 				ContentType:   "application/json",
-				Type:          DbDeleteSubjComd,
+				Type:          DbDeleteSubjCmd,
 				CorrelationId: d.CorrelationId,
 				Body:          j,
 			}); err != nil {
@@ -153,7 +152,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			Subject:  s.Subject,
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
-		}, ""); err != nil {
+		}, "", ""); err != nil {
 			return nil, false
 		}
 		//l.PublishNewSubject(&s)
@@ -187,7 +186,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}
 
 		s.Certificate = string(res.Body())
-		l.PublishDbCommand(DbUpdateSubjComd, &s, "")
+		l.PublishDbCommand(&s, DbUpdateSubjCmd, "")
 
 		return nil, false
 	})
@@ -253,8 +252,9 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if len(ips) == 0 {
 			e.Unresolvable = time.Now()
-			l.Publish(&e, "")
-			//l.PublishUpdateDNSResult(&e)
+			if err := l.Publish(&e, "", ""); err != nil {
+				return err, false
+			}
 			return nil, false
 		}
 
@@ -262,8 +262,10 @@ func (l *Londo) ConsumeCheck() *Londo {
 		for _, ip := range ips {
 			e.Targets = append(e.Targets, ip.String())
 		}
-		l.Publish(&e, "")
-		//l.PublishUpdateDNSResult(&e)
+
+		if err := l.Publish(&e, "", ""); err != nil {
+			return err, false
+		}
 
 		return nil, false
 	})
@@ -308,7 +310,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			if length == -1 {
 				var s Subject
-				l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
+
+				if err := l.Publish(&s, d.ReplyTo, CloseChannelCmd); err != nil {
+					return err, false
+				}
 				log.Infof("sent none -> %s queue", d.ReplyTo)
 				return nil, false
 			}
@@ -319,7 +324,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					cmd = CloseChannelCmd
 				}
 
-				l.PublishReplySubject(exp[i], d.ReplyTo, cmd)
+				if err := l.Publish(exp[i], d.ReplyTo, cmd); err != nil {
+					return err, false
+				}
 				log.Infof("sent %s -> %s queue", exp[i].Subject, d.ReplyTo)
 			}
 
@@ -342,7 +349,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			if length == -1 {
 				var s Subject
-				l.PublishReplySubject(&s, d.ReplyTo, CloseChannelCmd)
+
+				if err := l.Publish(&s, d.ReplyTo, CloseChannelCmd); err != nil {
+					return err, false
+				}
 				log.Infof("sent none -> %s queue", d.ReplyTo)
 				return nil, false
 			}
@@ -353,11 +363,13 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					cmd = CloseChannelCmd
 				}
 
-				l.PublishReplySubject(&subjs[i], d.ReplyTo, cmd)
+				if err := l.Publish(&subjs[i], d.ReplyTo, cmd); err != nil {
+					return err, false
+				}
 				log.Infof("sent %s -> %s queue", subjs[i].Subject, d.ReplyTo)
 			}
 
-		case DbGetSubjectComd:
+		case DbGetSubjectCmd:
 			var e GetSubjectEvenet
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return err, false
@@ -365,7 +377,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			subj, err := l.Db.FindSubject(e.Subject)
 
-			l.PublishReplySubject(&subj, d.ReplyTo, CloseChannelCmd)
+			if err := l.Publish(&subj, d.ReplyTo, CloseChannelCmd); err != nil {
+				return err, false
+			}
 
 			if err != nil {
 				log.Error(errors.New("subject " + e.Subject + " not found"))
@@ -373,7 +387,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				log.Infof("sent %s back to %s queue", subj.Subject, d.ReplyTo)
 			}
 
-		case DbDeleteSubjComd:
+		case DbDeleteSubjCmd:
 			certId, err := l.deleteSubject(&d)
 			if err != nil {
 				return err, false
@@ -381,7 +395,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			log.Infof("certificate %d has been deleted", certId)
 
-		case DbAddSubjComd:
+		case DbAddSubjCmd:
 			subj, err := l.createNewSubject(&d)
 			if err != nil {
 				return err, false
@@ -389,7 +403,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			log.Infof("%s has been added", subj)
 
-		case DbUpdateSubjComd:
+		case DbUpdateSubjCmd:
 			certId, err := l.updateSubject(&d)
 			if err != nil {
 				return err, false

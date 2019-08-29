@@ -71,7 +71,7 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-		g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
+		g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
 
 		rs := <-ch
 
@@ -89,7 +89,7 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 			CertID:   rs.CertID,
 			AltNames: rs.AltNames,
 			Targets:  rs.Targets,
-		}, ""); err != nil {
+		}, "", ""); err != nil {
 			return err
 		}
 		log.Infof("%s: %s -> renew", ip, s)
@@ -136,7 +136,7 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
-	if err := g.Londo.Publish(GetExpringSubjEvent{Days: d}, addr); err != nil {
+	if err := g.Londo.Publish(GetExpringSubjEvent{Days: d}, addr, ""); err != nil {
 		return err
 	}
 	log.Infof("%s: expiring subjects, %d days", ip, d)
@@ -217,7 +217,7 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
+	g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
 
 	rs := <-ch
 
@@ -234,7 +234,7 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 		Subject:  subj.Subject,
 		AltNames: subj.AltNames,
 		Targets:  subj.Targets,
-	}, ""); err != nil {
+	}, "", ""); err != nil {
 		return nil, err
 	}
 	log.Infof("%s: %s -> enroll", ip, s)
@@ -273,7 +273,7 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	g.Londo.PublishDbCommand(DbGetSubjectComd, &subj, addr)
+	g.Londo.PublishDbCommand(&subj, DbGetSubjectCmd, addr)
 
 	rs := <-ch
 
@@ -346,7 +346,7 @@ func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr stri
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
 	log.Debugf("request subject by %s", targets)
-	g.Londo.PublishDbCommand(DbGetSubjectByTargetCmd, &subj, addr)
+	g.Londo.PublishDbCommand(&subj, DbGetSubjectByTargetCmd, addr)
 
 	for {
 		select {

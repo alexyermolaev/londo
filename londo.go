@@ -35,12 +35,12 @@ const (
 
 	// Commands
 	// Db
-	DbDeleteSubjComd         = "subj.delete"
-	DbAddSubjComd            = "subj.add"
-	DbUpdateSubjComd         = "subj.update"
-	DbGetSubjectComd         = "subj.get"
+	DbDeleteSubjCmd          = "subj.delete"
+	DbAddSubjCmd             = "subj.add"
+	DbUpdateSubjCmd          = "subj.update"
+	DbGetSubjectCmd          = "subj.get"
 	DbGetAllSubjectsCmd      = "subj.get.all"
-	DbGetSubjectByTargetCmd  = "subj.get.taarget"
+	DbGetSubjectByTargetCmd  = "subj.get.target"
 	DbGetExpiringSubjectsCmd = "subj.get.expiring"
 	DbUpdateUnreachSubjCmd   = "subj.update.unreach"
 
