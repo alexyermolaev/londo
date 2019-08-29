@@ -6,6 +6,8 @@ import (
 
 func (l *Londo) Publish(exchange string, queue string, e Event, reply string, cmd string) error {
 	msg := e.GetMessage()
+	msg.ContentType = ContentType
+
 	if reply != "" {
 		msg.ReplyTo = reply
 	}

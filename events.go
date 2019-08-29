@@ -21,7 +21,6 @@ type RenewEvent struct {
 
 func (e RenewEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{
-		ContentType:   ContentType,
 		CorrelationId: e.ID,
 		Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
 	}
@@ -33,9 +32,7 @@ type RevokeEvent struct {
 }
 
 func (RevokeEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
 
 type EnrollEvent struct {
@@ -45,9 +42,7 @@ type EnrollEvent struct {
 }
 
 func (EnrollEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{ContentType: ContentType}
 }
 
 type DeleteSubjEvent struct {
@@ -60,9 +55,7 @@ type CompleteEnrollEvent struct {
 }
 
 func (CompleteEnrollEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
 
 type GetSubjectEvent struct {
@@ -70,9 +63,7 @@ type GetSubjectEvent struct {
 }
 
 func (GetSubjectEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: contentType,
-	}
+	return amqp.Publishing{}
 }
 
 type GetSubjectByTargetEvent struct {
@@ -80,9 +71,7 @@ type GetSubjectByTargetEvent struct {
 }
 
 func (GetSubjectByTargetEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
 
 type NewSubjectEvent struct {
@@ -96,9 +85,7 @@ type NewSubjectEvent struct {
 }
 
 func (NewSubjectEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
 
 type CollectEvent struct {
@@ -106,9 +93,7 @@ type CollectEvent struct {
 }
 
 func (CollectEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
 
 type GetExpiringSubjEvent struct {
@@ -117,14 +102,17 @@ type GetExpiringSubjEvent struct {
 
 func (GetExpiringSubjEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{
-		ContentType: ContentType,
-		Type:        DbGetExpiringSubjectsCmd,
+		Type: DbGetExpiringSubjectsCmd,
 	}
 }
 
 type ExpiringSubjectEvent struct {
 	Subject  string
 	NotAfter time.Time
+}
+
+func (ExpiringSubjectEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{}
 }
 
 type CheckDNSEvent struct {
@@ -135,7 +123,5 @@ type CheckDNSEvent struct {
 }
 
 func (CheckDNSEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }
