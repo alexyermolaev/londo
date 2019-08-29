@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"github.com/alexyermolaev/londo"
 	"io"
 	"io/ioutil"
 	"os"
@@ -426,4 +427,20 @@ func SaveCert(s *londopb.Subject) error {
 type ExpiringSubjects struct {
 	Subject  string `yaml:"subject"`
 	NotAfter string `yaml:"not_after"`
+}
+
+func DaemonSetup(name string, usage string, action interface{}) *cli.App {
+	app := cli.NewApp()
+
+	app.Name = name
+	app.Usage = usage
+	app.Version = londo.Version
+	app.Copyright = Copyright
+	app.Authors = []cli.Author{GetAuthors()}
+
+	app.Flags = londo.DefaultFlags
+
+	app.Action = action
+
+	return app
 }

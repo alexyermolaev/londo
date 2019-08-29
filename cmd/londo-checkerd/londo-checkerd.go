@@ -20,13 +20,7 @@ var (
 )
 
 func init() {
-	app = cli.NewApp()
-
-	app.Name = name
-	app.Usage = usage
-	app.Version = londo.Version
-	app.Copyright = londocli.Copyright
-	app.Authors = []cli.Author{londocli.GetAuthors()}
+	app = londocli.DaemonSetup(name, usage, defaultCommand)
 
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
@@ -41,15 +35,13 @@ func init() {
 		app.Flags = append(app.Flags, f)
 	}
 
-	app.Action = defaultCommand
-
 	sort.Sort(cli.FlagsByName(app.Flags))
 }
 
 /*
-Publishes a message with a request to get all subjects.Upon receiveing a response, the dameon
+Publishes a message with a request to get all subjects.Upon receiving a response, the daemon
 checks if outdated date is older than set time. If a subject still cannot be resolved asks
-database to delete a record, and publshes a message to revoke outdated and unresolvable subject.
+database to delete a record, and publishes a message to revoke outdated and unresolvable subject.
 
 If a subject was current, but cannot be resolved now, checker publishes a message to update database
 with time and date, when subject became unresolvable.

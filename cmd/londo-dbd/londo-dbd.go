@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sort"
 	"time"
 
 	"github.com/alexyermolaev/londo"
@@ -20,17 +21,9 @@ var (
 )
 
 func init() {
-	app = cli.NewApp()
+	app = londocli.DaemonSetup(name, usage, defaultCommand)
 
-	app.Name = name
-	app.Usage = usage
-	app.Version = londo.Version
-	app.Copyright = londocli.Copyright
-	app.Authors = []cli.Author{londocli.GetAuthors()}
-
-	app.Flags = londo.DefaultFlags
-
-	app.Action = defaultCommand
+	sort.Sort(cli.FlagsByName(app.Flags))
 }
 
 func main() {
