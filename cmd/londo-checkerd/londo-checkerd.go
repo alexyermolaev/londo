@@ -35,18 +35,10 @@ func init() {
 			Value:       12,
 			Destination: &londo.ScanHours,
 		},
-		// TODO: these are default flags all daemon share. They need to be elsewhere.
-		cli.BoolFlag{
-			Name:        "debug, d",
-			Usage:       "turn `DEBUG` on and off",
-			EnvVar:      "LONDO_DEBUG",
-			Destination: &londo.Debug,
-		},
-		cli.StringFlag{
-			Name:   "config, c",
-			Usage:  "load configuration from `FILE`",
-			EnvVar: "LONDO_CONFIG",
-		},
+	}
+
+	for _, f := range londo.DefaultFlags {
+		app.Flags = append(app.Flags, f)
 	}
 
 	app.Action = defaultCommand
@@ -63,7 +55,9 @@ If a subject was current, but cannot be resolved now, checker publishes a messag
 with time and date, when subject became unresolvable.
 */
 func main() {
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		os.Exit(1)
+	}
 }
 
 func defaultCommand(c *cli.Context) error {

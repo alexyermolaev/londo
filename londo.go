@@ -2,6 +2,7 @@ package londo
 
 import (
 	"fmt"
+	"github.com/urfave/cli"
 	"net"
 	"os"
 	"os/signal"
@@ -58,6 +59,20 @@ var (
 
 	cfg *Config
 	err error
+
+	DefaultFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:        "debug, d",
+			Usage:       "turn `DEBUG` on and off",
+			EnvVar:      "LONDO_DEBUG",
+			Destination: &Debug,
+		},
+		cli.StringFlag{
+			Name:   "config, c",
+			Usage:  "load configuration from `FILE`",
+			EnvVar: "LONDO_CONFIG",
+		},
+	}
 )
 
 func init() {

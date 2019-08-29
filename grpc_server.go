@@ -41,7 +41,9 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	}, nil
 }
 
-func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream londopb.CertService_RenewSubjectsServer) error {
+func (g *GRPCServer) RenewSubjects(
+	req *londopb.RenewSubjectRequest, stream londopb.CertService_RenewSubjectsServer) error {
+
 	s := req.GetSubject()
 
 	ip, addr, err := ParseIPAddr(stream.Context())
@@ -70,7 +72,13 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 		g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-		if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+		if err := g.Londo.Publish(
+			DbReplyExchange,
+			DbReplyQueue,
+			GetSubjectEvent{Subject: s},
+			addr,
+			DbGetSubjectCmd,
+		); err != nil {
 			return err
 		}
 
@@ -108,7 +116,9 @@ func (g *GRPCServer) RenewSubjects(req *londopb.RenewSubjectRequest, stream lond
 	return nil
 }
 
-func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest, stream londopb.CertService_GetExpiringSubjectServer) error {
+func (g *GRPCServer) GetExpiringSubject(
+	req *londopb.GetExpiringSubjectsRequest, stream londopb.CertService_GetExpiringSubjectServer) error {
+
 	d := req.Days
 
 	ip, addr, err := ParseIPAddr(stream.Context())
@@ -136,7 +146,12 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	wg.Add(1)
 	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
 
-	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetExpiringSubjEvent{Days: d}, addr, DbGetExpiringSubjectsCmd); err != nil {
+	if err := g.Londo.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		GetExpiringSubjEvent{Days: d},
+		addr,
+		DbGetExpiringSubjectsCmd); err != nil {
 		return err
 	}
 	log.Infof("%s: expiring subjects, %d days", ip, d)
@@ -170,7 +185,8 @@ func (g *GRPCServer) GetExpiringSubject(req *londopb.GetExpiringSubjectsRequest,
 	}
 }
 
-func (g *GRPCServer) DeleteSubject(ctx context.Context, req *londopb.DeleteSubjectRequest) (*londopb.DeleteSubjectResponse, error) {
+func (g *GRPCServer) DeleteSubject(
+	ctx context.Context, req *londopb.DeleteSubjectRequest) (*londopb.DeleteSubjectResponse, error) {
 	s := req.GetSubject()
 
 	ip, _, err := ParseIPAddr(ctx)
@@ -183,7 +199,8 @@ func (g *GRPCServer) DeleteSubject(ctx context.Context, req *londopb.DeleteSubje
 	return nil, err
 }
 
-func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.AddNewSubjectResponse, error) {
+func (g *GRPCServer) AddNewSubject(
+	ctx context.Context, req *londopb.AddNewSubjectRequest) (*londopb.AddNewSubjectResponse, error) {
 	// FIXME: code duplication
 	s := req.GetSubject().Subject
 	subj := Subject{
@@ -216,7 +233,12 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+	if err := g.Londo.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		GetSubjectEvent{Subject: s},
+		addr,
+		DbGetSubjectCmd); err != nil {
 		return nil, err
 	}
 
@@ -246,7 +268,9 @@ func (g *GRPCServer) AddNewSubject(ctx context.Context, req *londopb.AddNewSubje
 	}, nil
 }
 
-func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
+func (g *GRPCServer) GetSubject(
+	ctx context.Context, req *londopb.GetSubjectRequest) (*londopb.GetSubjectResponse, error) {
+
 	s := req.GetSubject()
 
 	ip, addr, err := ParseIPAddr(ctx)
@@ -273,7 +297,13 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
-	if err := g.Londo.Publish(DbReplyExchange, DbReplyQueue, GetSubjectEvent{Subject: s}, addr, DbGetSubjectCmd); err != nil {
+	if err := g.Londo.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		GetSubjectEvent{Subject: s},
+		addr,
+		DbGetSubjectCmd,
+	); err != nil {
 		return nil, err
 	}
 
@@ -300,7 +330,9 @@ func (g *GRPCServer) GetSubject(ctx context.Context, req *londopb.GetSubjectRequ
 	}, nil
 }
 
-func (g *GRPCServer) GetSubjectForTarget(req *londopb.ForTargetRequest, stream londopb.CertService_GetSubjectForTargetServer) error {
+func (g *GRPCServer) GetSubjectForTarget(
+	req *londopb.ForTargetRequest, stream londopb.CertService_GetSubjectForTargetServer) error {
+
 	ip, addr, err := ParseIPAddr(stream.Context())
 	if err != nil {
 		return err
@@ -314,7 +346,9 @@ func (g *GRPCServer) GetSubjectForTarget(req *londopb.ForTargetRequest, stream l
 	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
 }
 
-func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
+func (g *GRPCServer) GetSubjectsByTarget(
+	req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
+
 	targets := req.GetTarget()
 
 	ip, addr, err := ParseIPAddr(stream.Context())
@@ -327,7 +361,9 @@ func (g *GRPCServer) GetSubjectsByTarget(req *londopb.TargetRequest, stream lond
 	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
 }
 
-func (g *GRPCServer) getSubjectsForIPAddr(targets []string, ip string, addr string, stream londopb.CertService_GetSubjectsByTargetServer) error {
+func (g *GRPCServer) getSubjectsForIPAddr(
+	targets []string, ip string, addr string, stream londopb.CertService_GetSubjectsByTargetServer) error {
+
 	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
 		return status.Errorf(
 			codes.FailedPrecondition,
