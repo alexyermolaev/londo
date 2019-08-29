@@ -202,7 +202,5 @@ type Subject struct {
 }
 
 func (Subject) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		ContentType: ContentType,
-	}
+	return amqp.Publishing{}
 }

@@ -51,25 +51,13 @@ func (g *GRPCServer) RenewSubjects(
 		return err
 	}
 
+	sr, err := g.setupRequest(stream.Context())
+	if err != nil {
+		return err
+	}
+
 	if s != "" {
 		log.Infof("%s: renew %s", ip, s)
-
-		if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
-			log.Error(err)
-			return status.Errorf(
-				codes.FailedPrecondition,
-				fmt.Sprint("server error"))
-		}
-
-		log.Debug("creating consumer")
-
-		var (
-			ch = make(chan Subject)
-			wg sync.WaitGroup
-		)
-
-		wg.Add(1)
-		g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
 
 		log.Infof("%s: sub %s -> queue %s", ip, s, addr)
 		if err := g.Londo.Publish(
@@ -82,7 +70,7 @@ func (g *GRPCServer) RenewSubjects(
 			return err
 		}
 
-		rs := <-ch
+		rs := <-sr.replyChannel
 
 		if rs.Subject == "" {
 			log.Errorf("%s: code %d, resp %s", ip, codes.NotFound, s)
@@ -90,7 +78,7 @@ func (g *GRPCServer) RenewSubjects(
 				codes.NotFound,
 				fmt.Sprintf("%s not found", s))
 		}
-		wg.Wait()
+		sr.wg.Wait()
 
 		if err = g.Londo.Publish("", "", "", "", RenewEvent{
 			ID:       rs.ID.Hex(),
@@ -121,49 +109,31 @@ func (g *GRPCServer) GetExpiringSubject(
 
 	d := req.Days
 
-	ip, addr, err := ParseIPAddr(stream.Context())
+	sr, err := g.setupRequest(stream.Context())
 	if err != nil {
 		return err
 	}
 
-	var (
-		ch   = make(chan Subject)
-		done = make(chan struct{})
-		wg   sync.WaitGroup
-	)
-
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
-		log.Error(err)
-		return status.Errorf(
-			codes.FailedPrecondition,
-			fmt.Sprint("server error"))
-	}
-
-	log.Debug("creating consumer")
-
-	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
-
-	log.Infof("%s: get expiring subs", ip)
+	log.Infof("%s: get expiring subs", sr.ip)
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
-		addr,
+		sr.addr,
 		DbGetExpiringSubjectsCmd,
 		GetExpiringSubjEvent{Days: d},
 	); err != nil {
 		return err
 	}
-	log.Infof("%s: expiring subjects, %d days", ip, d)
+	log.Infof("%s: expiring subjects, %d days", sr.ip, d)
 
 	for {
 		select {
-		case rs := <-ch:
+		case rs := <-sr.replyChannel:
 			if rs.Subject == "" {
-				log.Errorf("%s: code %d", ip, codes.NotFound)
+				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
 
-				<-done
-				wg.Wait()
+				<-sr.doneChannel
+				sr.wg.Wait()
 				return status.Errorf(
 					codes.NotFound,
 					fmt.Sprintf("no subjects found"))
@@ -177,9 +147,9 @@ func (g *GRPCServer) GetExpiringSubject(
 			}
 			stream.Send(res)
 
-		case _ = <-done:
-			wg.Wait()
-			log.Infof("%s: close stream", ip)
+		case _ = <-sr.doneChannel:
+			sr.wg.Wait()
+			log.Infof("%s: close stream", sr.ip)
 			return nil
 		}
 	}
@@ -209,44 +179,28 @@ func (g *GRPCServer) AddNewSubject(
 		Targets:  req.GetSubject().Targets,
 	}
 
-	var (
-		ch = make(chan Subject)
-		wg sync.WaitGroup
-	)
-
-	ip, addr, err := ParseIPAddr(ctx)
+	sr, err := g.setupRequest(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
-		return nil, status.Errorf(
-			codes.FailedPrecondition,
-			fmt.Sprint("server error"))
-	}
-
-	log.Debug("creating consumer")
-
-	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
-
-	log.Infof("%s: add %s", ip, s)
-	log.Infof("%s: get %s -> queue %s", ip, s, addr)
+	log.Infof("%s: add %s", sr.ip, s)
+	log.Infof("%s: get %s -> queue %s", sr.ip, s, sr.addr)
 	if err := g.Londo.Publish(
-		DbReplyExchange, DbReplyQueue, addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
+		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
 	}
 
-	rs := <-ch
+	rs := <-sr.replyChannel
 
 	if rs.Subject != "" {
-		log.Errorf("%s: code %d, resp %s", ip, codes.AlreadyExists, s)
+		log.Errorf("%s: code %d, resp %s", sr.ip, codes.AlreadyExists, s)
 		return nil, status.Errorf(
 			codes.AlreadyExists,
 			fmt.Sprintf("%s already exists", s))
 	}
 
-	wg.Wait()
+	sr.wg.Wait()
 
 	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 		Subject:  subj.Subject,
@@ -255,7 +209,7 @@ func (g *GRPCServer) AddNewSubject(
 	}); err != nil {
 		return nil, err
 	}
-	log.Infof("%s: %s -> enroll", ip, s)
+	log.Infof("%s: %s -> enroll", sr.ip, s)
 	//g.Londo.PublishNewSubject(&subj)
 
 	return &londopb.AddNewSubjectResponse{
@@ -268,46 +222,30 @@ func (g *GRPCServer) GetSubject(
 
 	s := req.GetSubject()
 
-	var (
-		ch = make(chan Subject)
-		wg sync.WaitGroup
-	)
-
-	ip, addr, err := ParseIPAddr(ctx)
+	sr, err := g.setupRequest(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
-		return nil, status.Errorf(
-			codes.FailedPrecondition,
-			fmt.Sprint("server error"))
-	}
-
-	log.Debug("creating consumer")
-
-	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(addr, ch, nil, &wg)
-
-	log.Infof("%s: get sub %s", ip, s)
-	log.Infof("%s: sub %s -> queue %s", ip, s, addr)
+	log.Infof("%s: get sub %s", sr.ip, s)
+	log.Infof("%s: sub %s -> queue %s", sr.ip, s, sr.addr)
 	if err := g.Londo.Publish(
-		DbReplyExchange, DbReplyQueue, addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
+		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
 	}
 
-	rs := <-ch
+	rs := <-sr.replyChannel
 
 	if rs.Subject == "" {
-		log.Errorf("%s: code %d, resp %s", ip, codes.NotFound, s)
+		log.Errorf("%s: code %d, resp %s", sr.ip, codes.NotFound, s)
 		return nil, status.Errorf(
 			codes.NotFound,
 			fmt.Sprintf("%s not found", s))
 	}
 
-	wg.Wait()
+	sr.wg.Wait()
 
-	log.Infof("%s: resp %s", ip, rs.Subject)
+	log.Infof("%s: resp %s", sr.ip, rs.Subject)
 	return &londopb.GetSubjectResponse{
 		Subject: &londopb.Subject{
 			Subject:     rs.Subject,
@@ -322,59 +260,19 @@ func (g *GRPCServer) GetSubject(
 func (g *GRPCServer) GetSubjectForTarget(
 	req *londopb.ForTargetRequest, stream londopb.CertService_GetSubjectForTargetServer) error {
 
-	ip, addr, err := ParseIPAddr(stream.Context())
+	sr, err := g.setupRequest(stream.Context())
 	if err != nil {
 		return err
 	}
 
 	var targets []string
-	targets = append(targets, ip)
+	targets = append(targets, sr.ip)
 
-	log.Infof("%s: get subs by %s", ip, ip)
-
-	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
-}
-
-func (g *GRPCServer) GetSubjectsByTarget(
-	req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
-
-	targets := req.GetTarget()
-
-	ip, addr, err := ParseIPAddr(stream.Context())
-	if err != nil {
-		return err
-	}
-
-	log.Infof("%s: get subs by %s", ip, targets)
-
-	return g.getSubjectsForIPAddr(targets, ip, addr, stream)
-}
-
-func (g *GRPCServer) getSubjectsForIPAddr(
-	targets []string, ip string, addr string, stream londopb.CertService_GetSubjectsByTargetServer) error {
-
-	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, addr); err != nil {
-		return status.Errorf(
-			codes.FailedPrecondition,
-			fmt.Sprint("server error"))
-	}
-
-	log.Debug("creating consumer")
-
-	var (
-		ch   = make(chan Subject)
-		done = make(chan struct{})
-		wg   sync.WaitGroup
-	)
-
-	wg.Add(1)
-	g.Londo.ConsumeGrpcReplies(addr, ch, done, &wg)
-
-	log.Debugf("request subject by %s", targets)
+	log.Infof("%s: get subs by %s -> %s", sr.ip, sr.addr)
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
-		addr,
+		sr.addr,
 		DbGetSubjectByTargetCmd,
 		GetSubjectByTargetEvent{Target: targets},
 	); err != nil {
@@ -383,12 +281,12 @@ func (g *GRPCServer) getSubjectsForIPAddr(
 
 	for {
 		select {
-		case rs := <-ch:
+		case rs := <-sr.replyChannel:
 			if rs.Subject == "" {
-				log.Errorf("%s: code %d", ip, codes.NotFound)
+				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
 
-				<-done
-				wg.Wait()
+				<-sr.doneChannel
+				sr.wg.Wait()
 				return status.Errorf(
 					codes.NotFound,
 					fmt.Sprintf("no subjects found"))
@@ -405,9 +303,63 @@ func (g *GRPCServer) getSubjectsForIPAddr(
 			}
 			stream.Send(res)
 
-		case _ = <-done:
-			wg.Wait()
-			log.Infof("%s: close stream", ip)
+		case _ = <-sr.doneChannel:
+			sr.wg.Wait()
+			log.Infof("%s: close stream", sr.ip)
+			return nil
+		}
+	}
+
+}
+
+func (g *GRPCServer) GetSubjectsByTarget(
+	req *londopb.TargetRequest, stream londopb.CertService_GetSubjectsByTargetServer) error {
+
+	targets := req.GetTarget()
+
+	sr, err := g.setupRequest(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	log.Infof("%s: subj by ip -> %s queue", sr.ip, sr.addr)
+	if err := g.Londo.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		sr.addr,
+		DbGetSubjectByTargetCmd,
+		GetSubjectByTargetEvent{Target: targets},
+	); err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case rs := <-sr.replyChannel:
+			if rs.Subject == "" {
+				log.Errorf("%s: code %d", sr.ip, codes.NotFound)
+
+				<-sr.doneChannel
+				sr.wg.Wait()
+				return status.Errorf(
+					codes.NotFound,
+					fmt.Sprintf("no subjects found"))
+			}
+
+			res := &londopb.GetSubjectResponse{
+				Subject: &londopb.Subject{
+					Subject:     rs.Subject,
+					Certificate: rs.Certificate,
+					PrivateKey:  rs.PrivateKey,
+					AltNames:    rs.AltNames,
+					Targets:     rs.Targets,
+				},
+			}
+			stream.Send(res)
+
+		case _ = <-sr.doneChannel:
+			sr.wg.Wait()
+			log.Infof("%s: close stream", sr.ip)
 			return nil
 		}
 	}
@@ -443,4 +395,38 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 
 	log.Info("connected")
 	return ctx, nil
+}
+
+type requestSetup struct {
+	replyChannel chan Subject
+	doneChannel  chan struct{}
+	wg           sync.WaitGroup
+	ip           string
+	addr         string
+}
+
+func (g *GRPCServer) setupRequest(ctx context.Context) (*requestSetup, error) {
+	ip, addr, err := ParseIPAddr(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rs := &requestSetup{
+		replyChannel: make(chan Subject),
+		doneChannel:  make(chan struct{}),
+		ip:           ip,
+		addr:         addr,
+	}
+
+	if err := g.Londo.DeclareBindQueue(GRPCServerExchange, rs.addr); err != nil {
+		return nil, status.Errorf(
+			codes.FailedPrecondition,
+			fmt.Sprint("server error"))
+	}
+
+	rs.wg.Add(1)
+
+	g.Londo.ConsumeGrpcReplies(addr, rs.replyChannel, rs.doneChannel, &rs.wg)
+
+	return rs, nil
 }
