@@ -46,7 +46,7 @@ func (a *AMQP) Emit(exchange string, key string, msg amqp.Publishing) error {
 	return ch.Publish(exchange, key, false, false, msg)
 }
 
-func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery) (error, bool)) {
+func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery) bool) {
 	if wg != nil {
 		defer wg.Done()
 	}
@@ -67,14 +67,15 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 	}
 
 	for d := range delivery {
-		err, abort := f(d)
-		if err == nil {
-			d.Ack(false)
-		}
+		abort := f(d)
 
-		if abort {
+		log.WithFields(logrus.Fields{logAction: "ack"}).Info("consumed")
+		d.Ack(false)
+
+		if !abort {
 			break
 		}
+
 	}
 
 	log.WithFields(logrus.Fields{logQueue: queue}).Debug("closed")

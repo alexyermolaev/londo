@@ -14,40 +14,40 @@ import (
 )
 
 func (l *Londo) ConsumeEnroll() *Londo {
-	go l.AMQP.Consume(EnrollQueue, nil, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(EnrollQueue, nil, func(d amqp.Delivery) bool {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		key, err := GeneratePrivateKey(cfg.CertParams.BitSize)
 		if err != nil {
 			err = d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		s.PrivateKey, err = EncodePKey(key)
 		if err != nil {
 			err = d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		csr, err := GenerateCSR(key, s.Subject, cfg)
 		if err != nil {
 			err = d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		s.CSR, err = EncodeCSR(csr)
 		if err != nil {
 			err = d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{logSubject: s.Subject}).Info("enrolling")
@@ -60,7 +60,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		if err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		log.Debug("response: " + string(res.Body()))
@@ -68,7 +68,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		// TODO: need a better way to log remote errors
@@ -80,7 +80,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		if err != nil {
 			d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		if err := l.Publish(
@@ -91,7 +91,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 				logQueue:    DbReplyQueue,
 				logCertID:   s.CertID}).Error(err)
 
-			return nil, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{
@@ -119,7 +119,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 				logSubject:  s.Subject,
 				logCertID:   s.CertID}).Error(err)
 
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{
@@ -128,7 +128,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			logSubject:  s.Subject,
 			logCertID:   s.CertID}).Info("published")
 
-		return nil, false
+		return false
 	})
 
 	return l
@@ -141,11 +141,11 @@ approach.
 */
 // TODO: need separate revoke consumer
 func (l *Londo) ConsumeRenew() *Londo {
-	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) bool {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			return err, false
+			return false
 		}
 
 		// Same as another consumer
@@ -156,13 +156,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 		if err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		if err := l.Publish(
@@ -174,7 +174,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 		); err != nil {
 			d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		log.Infof("requested deletion of %s", s.Subject)
@@ -184,25 +184,25 @@ func (l *Londo) ConsumeRenew() *Londo {
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}); err != nil {
-			return nil, false
+			return false
 		}
 		//l.PublishNewSubject(&s)
 		log.Infof("sent %s subject for new enrollment", s.Subject)
 
-		return nil, false
+		return false
 	})
 
 	return l
 }
 
 func (l *Londo) ConsumeCollect() *Londo {
-	go l.AMQP.Consume(CollectQueue, nil, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(CollectQueue, nil, func(d amqp.Delivery) bool {
 		// TODO: fix code duplication
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
 			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{logCertID: s.CertID}).Info("collecting")
@@ -213,13 +213,13 @@ func (l *Londo) ConsumeCollect() *Londo {
 		if err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		s.Certificate = string(res.Body())
@@ -230,7 +230,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}); err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{
@@ -238,7 +238,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 			logQueue:    DbReplyQueue,
 			logCertID:   s.CertID}).Info("published")
 
-		return nil, false
+		return false
 	})
 
 	return l
@@ -250,11 +250,11 @@ func (l *Londo) ConsumeGrpcReplies(
 	done chan struct{},
 	wg *sync.WaitGroup) *Londo {
 
-	go l.AMQP.Consume(queue, wg, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(queue, wg, func(d amqp.Delivery) bool {
 
 		var s Subject
 		if err := json.Unmarshal(d.Body, &s); err != nil {
-			return err, false
+			return false
 		}
 
 		if s.Subject != "" {
@@ -267,20 +267,20 @@ func (l *Londo) ConsumeGrpcReplies(
 			if done != nil {
 				done <- struct{}{}
 			}
-			return nil, true
+			return true
 		}
 
-		return nil, false
+		return false
 	})
 
 	return l
 }
 
 func (l *Londo) ConsumeCheck() *Londo {
-	go l.AMQP.Consume(CheckQueue, nil, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(CheckQueue, nil, func(d amqp.Delivery) bool {
 		var e CheckCertEvent
 		if err := json.Unmarshal(d.Body, &e); err != nil {
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("consumed")
@@ -292,7 +292,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 		if err != nil {
 			// ???? what's this?
 			d.Reject(false)
-			return err, false
+			return false
 		}
 
 		// Cannot resolve and unreachable date is too old
@@ -308,9 +308,9 @@ func (l *Londo) ConsumeCheck() *Londo {
 			e.Unresolvable = time.Now()
 			if err := l.Publish(
 				DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
-				return err, false
+				return false
 			}
-			return nil, false
+			return false
 		}
 
 		// Verify remote host serial number. Serial numbers have to match
@@ -331,7 +331,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 		}
 
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
-			return err, false
+			return false
 		}
 
 		log.WithFields(logrus.Fields{
@@ -340,7 +340,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 			logQueue:    DbReplyQueue,
 			logCmd:      DbUpdateCertStatusCmd}).Info("published")
 
-		return nil, false
+		return false
 	})
 
 	return l
@@ -348,13 +348,13 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 // TODO: it is too big now
 func (l *Londo) ConsumeDbRPC() *Londo {
-	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
+	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) bool {
 
 		switch d.Type {
 		case DbUpdateCertStatusCmd:
 			var e CheckCertEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{
@@ -362,14 +362,14 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable, &e.NoMatch); err != nil {
 				log.Error(err)
-				return err, false
+				return false
 			}
 
 		case DbGetExpiringSubjectsCmd:
 			// TODO: need refactor to get rid of duplication
 			var e GetExpiringSubjEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{
@@ -378,7 +378,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			exp, err := l.Db.FindExpiringSubjects(24 * int(e.Days))
 			if err != nil {
 				log.Error(err)
-				return err, false
+				return false
 			}
 
 			length := len(exp) - 1
@@ -389,12 +389,12 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 				if err := l.Publish(
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
-					return err, false
+					return false
 				}
 				log.WithFields(logrus.Fields{
 					logQueue: d.ReplyTo,
 					logCmd:   DbGetExpiringSubjectsCmd}).Error("none")
-				return nil, false
+				return false
 			}
 
 			for i := 0; i <= length; i++ {
@@ -405,7 +405,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 				if err := l.Publish(
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, exp[i]); err != nil {
-					return err, false
+					return false
 				}
 
 				log.WithFields(logrus.Fields{
@@ -417,7 +417,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbGetSubjectByTargetCmd:
 			var e GetSubjectByTargetEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{
@@ -426,7 +426,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			subjs, err := l.Db.FineManySubjects(e.Target)
 			if err != nil {
 				log.Error(err)
-				return err, false
+				return false
 			}
 
 			length := len(subjs) - 1
@@ -437,13 +437,13 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 				if err := l.Publish(
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
-					return err, false
+					return false
 				}
 
 				log.WithFields(logrus.Fields{
 					logQueue: d.ReplyTo, logCmd: DbGetSubjectByTargetCmd}).Error("none")
 
-				return nil, false
+				return false
 			}
 
 			for i := 0; i <= length; i++ {
@@ -454,7 +454,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 				if err := l.Publish(
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, &subjs[i]); err != nil {
-					return err, false
+					return false
 				}
 
 				log.WithFields(logrus.Fields{
@@ -466,14 +466,14 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbGetSubjectCmd:
 			var e GetSubjectEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
-				return err, false
+				return false
 			}
 
 			subj, err := l.Db.FindSubject(e.Subject)
 
 			if err := l.Publish(
 				GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &subj); err != nil {
-				return err, false
+				return false
 			}
 
 			if err != nil {
@@ -488,7 +488,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbDeleteSubjCmd:
 			certId, err := l.deleteSubject(&d)
 			if err != nil {
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbDeleteSubjCmd}).Info("success")
@@ -497,7 +497,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			subj, err := l.createNewSubject(&d)
 			if err != nil {
 				log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{logSubject: subj, logCmd: DbAddSubjCmd}).Info("success")
@@ -507,7 +507,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			if err != nil {
 				d.Reject(true)
 				log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
-				return err, false
+				return false
 			}
 
 			log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbUpdateSubjCmd}).Info("success")
@@ -516,7 +516,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			log.WithFields(logrus.Fields{logCmd: d.Type}).Error("unknown")
 		}
 
-		return nil, false
+		return false
 	})
 
 	return l
