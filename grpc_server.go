@@ -58,7 +58,6 @@ func (g *GRPCServer) RenewSubjects(
 	}
 
 	if s != "" {
-
 		if err := g.Londo.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
@@ -89,6 +88,8 @@ func (g *GRPCServer) RenewSubjects(
 				codes.NotFound,
 				fmt.Sprintf("%s not found", s))
 		}
+
+		<-sr.doneChannel
 		sr.wg.Wait()
 
 		if err = g.Londo.Publish(RenewExchange, RenewQueue, "", "", RenewEvent{
@@ -211,7 +212,7 @@ func (g *GRPCServer) AddNewSubject(
 
 	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 		Subject:  subj.Subject,
-		Port:     int(subj.Port),
+		Port:     subj.Port,
 		AltNames: subj.AltNames,
 		Targets:  subj.Targets,
 	}); err != nil {

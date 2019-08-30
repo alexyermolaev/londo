@@ -149,10 +149,11 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return false
 		}
 
-		// Same as another consumer
+		log.WithFields(logrus.Fields{logSubject: s.Subject}).Info("delivered")
+
 		time.Sleep(1 * time.Minute)
 
-		res, err := l.RestClient.Revoke(s.CertID)
+		res, err := l.RestClient.Revoke(s.CertID, "renew")
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			d.Reject(true)
@@ -166,6 +167,8 @@ func (l *Londo) ConsumeRenew() *Londo {
 			return false
 		}
 
+		d.Ack(false)
+
 		if err := l.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
@@ -173,14 +176,14 @@ func (l *Londo) ConsumeRenew() *Londo {
 			DbDeleteSubjCmd,
 			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
 		); err != nil {
-			d.Reject(true)
 
 			log.WithFields(logrus.Fields{
 				logExchange: DbReplyExchange,
 				logQueue:    DbReplyQueue,
 				logCmd:      DbDeleteSubjCmd,
+				logReason:   err,
 				logSubject:  s.Subject,
-				logCertID:   s.CertID}).Error("requeue")
+				logCertID:   s.CertID}).Error("msg lost")
 
 			return false
 		}
@@ -198,16 +201,21 @@ func (l *Londo) ConsumeRenew() *Londo {
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}); err != nil {
+
+			log.WithFields(logrus.Fields{
+				logExchange: EnrollExchange,
+				logQueue:    EnrollQueue,
+				logReason:   err,
+				logSubject:  s.Subject}).Error("msg lost")
+
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logCmd:      DbDeleteSubjCmd,
+			logExchange: EnrollExchange,
+			logQueue:    EnrollQueue,
 			logSubject:  s.Subject}).Info("published")
 
-		d.Ack(false)
 		return false
 	})
 

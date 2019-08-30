@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	name  = "londo-dbd"
-	usage = "database client"
+	name  = "londo-enrolld"
+	usage = "enrolls new subjects with remote CM"
 )
 
 var (
@@ -37,9 +37,9 @@ func defaultCommand(c *cli.Context) error {
 		londo.Debug = true
 	}
 
-	return londo.S(name).
-		DbService().
+	return londo.S("renew").
 		AMQPConnection().
+		RestAPIClient().
 		Declare(
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
@@ -48,9 +48,14 @@ func defaultCommand(c *cli.Context) error {
 			londo.RenewExchange,
 			londo.RenewQueue,
 			amqp.ExchangeDirect, amqp.Table{
+				// TODO: probably once a day
 				"x-message-ttl": int(59 * time.Minute / time.Millisecond),
 			}).
-		ConsumeDbRPC().
+		Declare(
+			londo.EnrollExchange,
+			londo.EnrollQueue,
+			amqp.ExchangeDirect, nil).
+		ConsumeRenew().
 		Run()
 
 }

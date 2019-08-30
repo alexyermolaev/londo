@@ -90,8 +90,19 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 			r.config.Rest.Endpoints.Enroll)
 }
 
-func (r RestAPI) Revoke(certId int) (*resty.Response, error) {
+type Revoke struct {
+	Reason string `json:"reason"`
+}
+
+func (r RestAPI) Revoke(certId int, reason string) (*resty.Response, error) {
+
+	j, err := json.Marshal(Revoke{Reason: reason})
+	if err != nil {
+		return nil, err
+	}
+
 	return r.request().
+		SetBody(j).
 		Post(r.config.Rest.Url +
 			r.config.Rest.Endpoints.Revoke +
 			"/" + strconv.Itoa(certId))
