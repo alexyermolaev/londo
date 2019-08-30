@@ -14,6 +14,7 @@ type Event interface {
 type RenewEvent struct {
 	ID       string
 	Subject  string
+	Port     int32
 	CertID   int
 	AltNames []string
 	Targets  []string
@@ -37,7 +38,7 @@ func (RevokeEvent) GetMessage() amqp.Publishing {
 
 type EnrollEvent struct {
 	Subject  string
-	Port     int
+	Port     int32
 	AltNames []string
 	Targets  []string
 }

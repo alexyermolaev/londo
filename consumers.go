@@ -139,12 +139,13 @@ Since automated renew process involve manual approval by a human, it is much eas
 old certificate and issue new one. While this complicates logic, currently, this is the best
 approach.
 */
-// TODO: need separate revoke consumer
+// TODO: need a separate revoke consumer
 func (l *Londo) ConsumeRenew() *Londo {
 	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) bool {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
+			log.WithFields(logrus.Fields{logReason: err}).Error("rejected")
 			return false
 		}
 
@@ -155,13 +156,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logReason: err}).Error("requeue")
 			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logReason: err}).Error("requeue")
 			return false
 		}
 
@@ -172,22 +173,40 @@ func (l *Londo) ConsumeRenew() *Londo {
 			DbDeleteSubjCmd,
 			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
 		); err != nil {
-			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			d.Reject(true)
+
+			log.WithFields(logrus.Fields{
+				logExchange: DbReplyExchange,
+				logQueue:    DbReplyQueue,
+				logCmd:      DbDeleteSubjCmd,
+				logSubject:  s.Subject,
+				logCertID:   s.CertID}).Error("requeue")
+
 			return false
 		}
 
-		log.Infof("requested deletion of %s", s.Subject)
+		log.WithFields(logrus.Fields{
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logCmd:      DbDeleteSubjCmd,
+			logSubject:  s.Subject,
+			logCertID:   s.CertID}).Info("published")
 
 		if err := l.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 			Subject:  s.Subject,
+			Port:     s.Port,
 			AltNames: s.AltNames,
 			Targets:  s.Targets,
 		}); err != nil {
 			return false
 		}
 
-		log.Infof("sent %s subject for new enrollment", s.Subject)
+		log.WithFields(logrus.Fields{
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logCmd:      DbDeleteSubjCmd,
+			logSubject:  s.Subject}).Info("published")
+
 		d.Ack(false)
 		return false
 	})

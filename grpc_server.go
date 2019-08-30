@@ -51,12 +51,14 @@ func (g *GRPCServer) RenewSubjects(
 
 	sr, err := g.setupRequest(stream.Context())
 	if err != nil {
-		return err
+		log.WithFields(logrus.Fields{logReason: err}).Error("abort")
+		return status.Errorf(
+			codes.Internal,
+			fmt.Sprint("server error"))
 	}
 
 	if s != "" {
-		log.Infof("%s: renew %s", sr.ip, s)
-		log.Infof("%s: sub %s -> queue %s", sr.ip, s, sr.addr)
+
 		if err := g.Londo.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
@@ -64,29 +66,48 @@ func (g *GRPCServer) RenewSubjects(
 			DbGetSubjectCmd,
 			GetSubjectEvent{Subject: s},
 		); err != nil {
-			return err
+			log.WithFields(logrus.Fields{logReason: err}).Error("abort")
+			return status.Errorf(
+				codes.Internal,
+				fmt.Sprint("server error"))
 		}
+
+		log.WithFields(logrus.Fields{
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logCmd:      DbGetSubjectCmd,
+			logIP:       sr.ip}).Info("get")
 
 		rs := <-sr.replyChannel
 
 		if rs.Subject == "" {
-			log.Errorf("%s: code %d, resp %s", sr.ip, codes.NotFound, s)
+			log.WithFields(logrus.Fields{
+				logCode:    codes.NotFound,
+				logIP:      sr.ip,
+				logSubject: s}).Error("not found")
 			return status.Errorf(
 				codes.NotFound,
 				fmt.Sprintf("%s not found", s))
 		}
 		sr.wg.Wait()
 
-		if err = g.Londo.Publish("", "", "", "", RenewEvent{
+		if err = g.Londo.Publish(RenewExchange, RenewQueue, "", "", RenewEvent{
 			ID:       rs.ID.Hex(),
 			Subject:  rs.Subject,
+			Port:     rs.Port,
 			CertID:   rs.CertID,
 			AltNames: rs.AltNames,
 			Targets:  rs.Targets,
 		}); err != nil {
-			return err
+			return status.Errorf(
+				codes.Internal,
+				fmt.Sprint("server error"))
 		}
-		log.Infof("%s: %s -> renew", sr.ip, s)
+
+		log.WithFields(logrus.Fields{
+			logExchange: RenewExchange,
+			logQueue:    RenewQueue,
+			logSubject:  rs.Subject}).Info("published")
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
