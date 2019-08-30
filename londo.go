@@ -81,13 +81,15 @@ var (
 func init() {
 	// Logging
 	log.SetFormatter(&prefixed.TextFormatter{
-		FullTimestamp: true,
+		FullTimestamp:    true,
+		SpacePadding:     20,
+		DisableUppercase: true,
 	})
 
-	if cfg.Debug == 1 {
-		log.Warn("debugging is on")
-		log.SetLevel(logrus.DebugLevel)
-	}
+	//if cfg.Debug == 1 {
+	//	log.Warn("debugging is on")
+	//	log.SetLevel(logrus.DebugLevel)
+	//}
 
 	log.Info("reading configuration")
 	cfg, err = ReadConfig()

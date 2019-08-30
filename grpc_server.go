@@ -399,7 +399,6 @@ func (g *GRPCServer) getManyReplies(sr *requestSetup, f func(rs Subject) error) 
 
 		case _ = <-sr.doneChannel:
 			sr.wg.Wait()
-			log.Infof("%s: close stream", sr.ip)
 			return nil
 		}
 	}
