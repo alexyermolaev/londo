@@ -2,16 +2,17 @@ package londo
 
 import (
 	"fmt"
-	"github.com/urfave/cli"
 	"net"
 	"os"
 	"os/signal"
 
 	"github.com/alexyermolaev/londo/londopb"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	log "github.com/sirupsen/logrus"
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/urfave/cli"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -60,6 +61,8 @@ var (
 	cfg *Config
 	err error
 
+	log = logrus.New()
+
 	DefaultFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:        "debug, d",
@@ -76,20 +79,21 @@ var (
 )
 
 func init() {
-
-	log.SetFormatter(&log.TextFormatter{
+	// Logging
+	log.SetFormatter(&prefixed.TextFormatter{
 		FullTimestamp: true,
 	})
+
+	if cfg.Debug == 1 {
+		log.Warn("debugging is on")
+		log.SetLevel(logrus.DebugLevel)
+	}
 
 	log.Info("reading configuration")
 	cfg, err = ReadConfig()
 	if err != nil {
-		log.Fatal("cannot read config")
+		log.WithFields(logrus.Fields{logReason: err}).Error("cannot read config file")
 		os.Exit(1)
-	}
-	if cfg.Debug == 1 {
-		log.Warn("debugging is on")
-		log.SetLevel(log.DebugLevel)
 	}
 }
 
@@ -115,17 +119,17 @@ func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Ta
 	defer ch.Close()
 	fail(err)
 
-	log.Infof("declaring %s exchange...", exchange)
+	log.WithFields(logrus.Fields{logExchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
 	fail(err)
 
-	log.Infof("declaring %s queue...", queue)
+	log.WithFields(logrus.Fields{logQueue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(
 		queue, false, false, false, false, args)
 	fail(err)
 
-	log.Infof("binding to %s queue...", q.Name)
+	log.WithFields(logrus.Fields{logQueue: q.Name}).Info("binding")
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
 	fail(err)
 
@@ -138,7 +142,7 @@ func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
 	defer ch.Close()
 	fail(err)
 
-	log.Infof("declaring %s exchange...", exchange)
+	log.WithFields(logrus.Fields{logExchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
 	fail(err)
@@ -152,13 +156,13 @@ func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
 	defer ch.Close()
 	fail(err)
 
-	log.Infof("declaring %s queue...", queue)
+	log.WithFields(logrus.Fields{logQueue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(queue, false, true, false, false, nil)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("binding to %s queue...", q.Name)
+	log.WithFields(logrus.Fields{logQueue: q.Name}).Info("binding")
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
 
 	return err
@@ -185,17 +189,17 @@ func S(name string) *Londo {
 }
 
 func (l *Londo) GRPCServer() *Londo {
-	log.Info("initializing grpc...")
+	log.Info("initializing")
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	fail(err)
 
 	opts := []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_auth.StreamServerInterceptor(AuthIntercept),
+		grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(
+			grpcAuth.StreamServerInterceptor(AuthIntercept),
 		)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_auth.UnaryServerInterceptor(AuthIntercept),
+		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
+			grpcAuth.UnaryServerInterceptor(AuthIntercept),
 		)),
 	}
 

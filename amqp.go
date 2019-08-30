@@ -4,8 +4,7 @@ import (
 	"strconv"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -52,7 +51,7 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 		defer wg.Done()
 	}
 
-	log.Infof("consuming %s queue...", queue)
+	log.WithFields(logrus.Fields{logQueue: queue}).Info("consuming")
 
 	ch, err := a.connection.Channel()
 	defer ch.Close()
@@ -80,5 +79,5 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 		}
 	}
 
-	log.Info("consumer has terminated")
+	log.WithFields(logrus.Fields{logQueue: queue}).Info("consumer terminated")
 }

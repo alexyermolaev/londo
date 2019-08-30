@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/go-resty/resty/v2"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -83,7 +82,7 @@ func (r RestAPI) Enroll(s *Subject) (*resty.Response, error) {
 
 	j, _ := json.Marshal(&body)
 
-	log.Debug("request: " + string(j))
+	//log.Debug("request: " + string(j))
 
 	return r.request().
 		SetBody(j).

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -211,12 +211,12 @@ func (l *Londo) ConsumeGrpcReplies(
 		}
 
 		if s.Subject != "" {
-			log.Infof("<- %s", s.Subject)
+			log.WithFields(logrus.Fields{"queue": queue, "subject": s.Subject}).Info("consume")
 		}
 		ch <- s
 
 		if d.Type == CloseChannelCmd {
-			log.Debug("received stop command")
+			log.WithFields(logrus.Fields{"queue": queue, "cmd": CloseChannelCmd}).Debug("received")
 			if done != nil {
 				done <- struct{}{}
 			}
@@ -236,13 +236,14 @@ func (l *Londo) ConsumeCheck() *Londo {
 			return err, false
 		}
 
-		log.Infof("received %s subject to be checked", e.Subject)
+		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("consumed")
 
 		now := time.Now()
 		t := e.Unresolvable.Sub(now).Round(time.Hour).Hours()
 
 		ips, err := net.LookupIP(e.Subject)
 		if err != nil {
+			// ???? what's this?
 			d.Reject(false)
 			return err, false
 		}
@@ -286,6 +287,12 @@ func (l *Londo) ConsumeCheck() *Londo {
 			return err, false
 		}
 
+		log.WithFields(logrus.Fields{
+			logSubject:  e.Subject,
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logCmd:      DbUpdateCertStatusCmd}).Info("published")
+
 		return nil, false
 	})
 
@@ -295,6 +302,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 // TODO: it is too big now
 func (l *Londo) ConsumeDbRPC() *Londo {
 	go l.AMQP.Consume(DbReplyQueue, nil, func(d amqp.Delivery) (error, bool) {
+
 		switch d.Type {
 		case DbUpdateCertStatusCmd:
 			var e CheckCertEvent
@@ -302,7 +310,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("sub %s: update status", e.Subject)
+			log.WithFields(logrus.Fields{
+				logSubject: e.Subject, logCmd: DbUpdateCertStatusCmd}).Info("consumed")
 
 			if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable, &e.NoMatch); err != nil {
 				log.Error(err)
@@ -316,7 +325,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("getting subjects expiring in %d days", e.Days)
+			log.WithFields(logrus.Fields{
+				logDays: e.Days, logCmd: DbGetExpiringSubjectsCmd}).Info("consumed")
 
 			exp, err := l.Db.FindExpiringSubjects(24 * int(e.Days))
 			if err != nil {
@@ -334,7 +344,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 					return err, false
 				}
-				log.Infof("sent none -> %s queue", d.ReplyTo)
+				log.WithFields(logrus.Fields{
+					logQueue: d.ReplyTo,
+					logCmd:   DbGetExpiringSubjectsCmd}).Error("none")
 				return nil, false
 			}
 
@@ -348,7 +360,11 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, exp[i]); err != nil {
 					return err, false
 				}
-				log.Infof("sent %s -> %s queue", exp[i].Subject, d.ReplyTo)
+
+				log.WithFields(logrus.Fields{
+					logQueue:   d.ReplyTo,
+					logSubject: exp[i].Subject,
+					logCmd:     DbGetExpiringSubjectsCmd}).Info("published")
 			}
 
 		case DbGetSubjectByTargetCmd:
@@ -357,7 +373,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("getting subjects for %s target(s)", e.Target)
+			log.WithFields(logrus.Fields{
+				logCmd: DbGetSubjectByTargetCmd, logTargets: e.Target}).Info("get")
 
 			subjs, err := l.Db.FineManySubjects(e.Target)
 			if err != nil {
@@ -375,7 +392,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 					return err, false
 				}
-				log.Infof("sent none -> %s queue", d.ReplyTo)
+
+				log.WithFields(logrus.Fields{
+					logQueue: d.ReplyTo, logCmd: DbGetSubjectByTargetCmd}).Error("none")
+
 				return nil, false
 			}
 
@@ -389,7 +409,11 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 					GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, &subjs[i]); err != nil {
 					return err, false
 				}
-				log.Infof("sent %s -> %s queue", subjs[i].Subject, d.ReplyTo)
+
+				log.WithFields(logrus.Fields{
+					logQueue:   d.ReplyTo,
+					logCmd:     DbGetSubjectByTargetCmd,
+					logSubject: subjs[i].Subject}).Info("published")
 			}
 
 		case DbGetSubjectCmd:
@@ -408,7 +432,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			if err != nil {
 				log.Error(errors.New("subject " + e.Subject + " not found"))
 			} else {
-				log.Infof("sent %s back to %s queue", subj.Subject, d.ReplyTo)
+				log.WithFields(logrus.Fields{
+					logQueue:   d.ReplyTo,
+					logSubject: subj.Subject,
+					logCmd:     DbGetSubjectCmd}).Info("published")
 			}
 
 		case DbDeleteSubjCmd:
@@ -417,7 +444,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("certificate %d has been deleted", certId)
+			log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbDeleteSubjCmd}).Info("success")
 
 		case DbAddSubjCmd:
 			subj, err := l.createNewSubject(&d)
@@ -425,7 +452,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("%s has been added", subj)
+			log.WithFields(logrus.Fields{logSubject: subj, logCmd: DbAddSubjCmd}).Info("success")
 
 		case DbUpdateSubjCmd:
 			certId, err := l.updateSubject(&d)
@@ -433,10 +460,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 				return err, false
 			}
 
-			log.Infof("subject with %d has been updated with new certificate", certId)
+			log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbUpdateSubjCmd}).Info("success")
 
 		default:
-			log.Warnf("unknown command received: %s", d.Type)
+			log.WithFields(logrus.Fields{logCmd: d.Type}).Error("unknown")
 		}
 
 		return nil, false

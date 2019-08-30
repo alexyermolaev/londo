@@ -8,7 +8,7 @@ import (
 	"github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -20,20 +20,23 @@ type GRPCServer struct {
 func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest) (*londopb.GetTokenResponse, error) {
 	ip, _, err := ParseIPAddr(ctx)
 	if err != nil {
+
+		log.WithFields(logrus.Fields{logData: "ip"}).Error(err)
+
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprint("server error"))
 	}
-
-	log.Infof("%s: update token", ip)
 
 	token, err := jwt.IssueJWT(ip)
 	if err != nil {
+		log.WithFields(logrus.Fields{logData: "jwt"}).Error(err)
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprint("server error"))
 	}
 
+	log.WithFields(logrus.Fields{logIP: ip}).Info("update token")
 	return &londopb.GetTokenResponse{
 		Token: &londopb.JWTToken{
 			Token: string(token),
@@ -109,7 +112,8 @@ func (g *GRPCServer) GetExpiringSubject(
 		return err
 	}
 
-	log.Infof("%s: get expiring subs", sr.ip)
+	log.WithFields(logrus.Fields{logIP: sr.ip, logDays: d}).Info("get expiring subjects")
+
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
@@ -119,7 +123,6 @@ func (g *GRPCServer) GetExpiringSubject(
 	); err != nil {
 		return err
 	}
-	log.Infof("%s: expiring subjects, %d days", sr.ip, d)
 
 	return g.getManyReplies(sr, func(rs Subject) error {
 		return stream.Send(&londopb.GetExpringSubjectsResponse{
@@ -140,7 +143,7 @@ func (g *GRPCServer) DeleteSubject(
 		return nil, err
 	}
 
-	log.Infof("%s: revoke %s", ip, s)
+	log.WithFields(logrus.Fields{logIP: ip, logSubject: s}).Info("revoke")
 
 	return nil, err
 }
@@ -160,8 +163,8 @@ func (g *GRPCServer) AddNewSubject(
 		return nil, err
 	}
 
-	log.Infof("%s: add %s", sr.ip, s)
-	log.Infof("%s: get %s -> queue %s", sr.ip, s, sr.addr)
+	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: sr.addr}).Info("get")
+
 	if err := g.Londo.Publish(
 		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
@@ -170,7 +173,12 @@ func (g *GRPCServer) AddNewSubject(
 	rs := <-sr.replyChannel
 
 	if rs.Subject != "" {
-		log.Errorf("%s: code %d, resp %s", sr.ip, codes.AlreadyExists, s)
+
+		log.WithFields(logrus.Fields{
+			logIP:      sr.ip,
+			logSubject: s,
+			logCode:    codes.AlreadyExists}).Error("already exists")
+
 		return nil, status.Errorf(
 			codes.AlreadyExists,
 			fmt.Sprintf("%s already exists", s))
@@ -185,10 +193,10 @@ func (g *GRPCServer) AddNewSubject(
 	}); err != nil {
 		return nil, err
 	}
-	log.Infof("%s: %s -> enroll", sr.ip, s)
+	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: EnrollQueue}).Info("enroll")
 
 	return &londopb.AddNewSubjectResponse{
-		Subject: s + " has been queued for enrollment",
+		Subject: s + " enrolled.",
 	}, nil
 }
 
@@ -202,8 +210,8 @@ func (g *GRPCServer) GetSubject(
 		return nil, err
 	}
 
-	log.Infof("%s: get sub %s", sr.ip, s)
-	log.Infof("%s: sub %s -> queue %s", sr.ip, s, sr.addr)
+	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: sr.addr}).Info("get")
+
 	if err := g.Londo.Publish(
 		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
 		return nil, err
@@ -212,7 +220,9 @@ func (g *GRPCServer) GetSubject(
 	rs := <-sr.replyChannel
 
 	if rs.Subject == "" {
-		log.Errorf("%s: code %d, resp %s", sr.ip, codes.NotFound, s)
+
+		log.WithFields(logrus.Fields{logIP: sr.ip, logCode: codes.NotFound}).Error("not found")
+
 		return nil, status.Errorf(
 			codes.NotFound,
 			fmt.Sprintf("%s not found", s))
@@ -243,7 +253,8 @@ func (g *GRPCServer) GetSubjectForTarget(
 	var targets []string
 	targets = append(targets, sr.ip)
 
-	log.Infof("%s: get subs by %s -> %s", sr.ip, sr.addr)
+	log.WithFields(logrus.Fields{logIP: sr.ip, logQueue: sr.addr}).Info("get all")
+
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
