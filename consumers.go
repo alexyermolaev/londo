@@ -366,7 +366,6 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			}
 
 		case DbGetExpiringSubjectsCmd:
-			// TODO: need refactor to get rid of duplication
 			var e GetExpiringSubjEvent
 			if err := json.Unmarshal(d.Body, &e); err != nil {
 				return false
@@ -533,7 +532,7 @@ func (l *Londo) updateSubject(d *amqp.Delivery) (int, error) {
 		return 0, err
 	}
 
-	return e.CertID, l.Db.UpdateSubjCert(e.CertID, e.Certificate, c.NotAfter)
+	return e.CertID, l.Db.UpdateSubjCert(&e.CertID, &e.Certificate, &c.NotAfter, c.SerialNumber)
 }
 
 func (l *Londo) createNewSubject(d *amqp.Delivery) (string, error) {

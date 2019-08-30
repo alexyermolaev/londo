@@ -3,6 +3,7 @@ package londo
 import (
 	"context"
 	"errors"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -116,7 +117,7 @@ func (m *MongoDB) DeleteSubject(hexId string, certid int) error {
 	return err
 }
 
-func (m *MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
+func (m *MongoDB) UpdateSubjCert(certId *int, cert *string, na *time.Time, sn *big.Int) error {
 	col := m.getSubjCollection()
 
 	filter := bson.M{"cert_id": certId}
@@ -124,6 +125,7 @@ func (m *MongoDB) UpdateSubjCert(certId int, cert string, na time.Time) error {
 		{"$set", bson.D{
 			{"certificate", cert},
 			{"not_after", na},
+			{"serial_number", sn},
 			{"updated_at", time.Now()},
 		}},
 	}
