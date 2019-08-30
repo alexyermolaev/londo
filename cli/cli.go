@@ -167,6 +167,7 @@ func AddSubject(c *cli.Context) error {
 		req := &londopb.AddNewSubjectRequest{
 			Subject: &londopb.NewSubject{
 				Subject:  c.Args().First(),
+				Port:     int32(c.Int("port")),
 				AltNames: c.StringSlice("alt"),
 				Targets:  c.StringSlice("target"),
 			},

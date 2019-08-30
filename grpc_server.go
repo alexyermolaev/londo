@@ -154,6 +154,7 @@ func (g *GRPCServer) AddNewSubject(
 	s := req.GetSubject().Subject
 	subj := Subject{
 		Subject:  s,
+		Port:     req.GetSubject().Port,
 		AltNames: req.GetSubject().AltNames,
 		Targets:  req.GetSubject().Targets,
 	}
@@ -188,6 +189,7 @@ func (g *GRPCServer) AddNewSubject(
 
 	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 		Subject:  subj.Subject,
+		Port:     int(subj.Port),
 		AltNames: subj.AltNames,
 		Targets:  subj.Targets,
 	}); err != nil {

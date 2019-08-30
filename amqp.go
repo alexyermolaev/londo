@@ -68,9 +68,7 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 
 	for d := range delivery {
 		err, abort := f(d)
-		if err != nil {
-			log.Error(err)
-		} else {
+		if err == nil {
 			d.Ack(false)
 		}
 

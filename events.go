@@ -37,6 +37,7 @@ func (RevokeEvent) GetMessage() amqp.Publishing {
 
 type EnrollEvent struct {
 	Subject  string
+	Port     int
 	AltNames []string
 	Targets  []string
 }
@@ -76,6 +77,7 @@ func (GetSubjectByTargetEvent) GetMessage() amqp.Publishing {
 
 type NewSubjectEvent struct {
 	Subject    string
+	Port       int
 	CSR        string
 	PrivateKey string
 	CertID     int

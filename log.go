@@ -21,6 +21,7 @@ const (
 	logLevel    = "level"
 	logName     = "name"
 	logPort     = "port"
+	logAction   = "action"
 )
 
 func fail(err error) {

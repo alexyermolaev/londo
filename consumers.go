@@ -18,36 +18,39 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
 		key, err := GeneratePrivateKey(cfg.CertParams.BitSize)
 		if err != nil {
 			err = d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
 		s.PrivateKey, err = EncodePKey(key)
 		if err != nil {
 			err = d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
 		csr, err := GenerateCSR(key, s.Subject, cfg)
 		if err != nil {
 			err = d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
 		s.CSR, err = EncodeCSR(csr)
 		if err != nil {
 			err = d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
-		log.Info("requesting new certificate for " + s.Subject + " subject")
-		log.Debug(s.CSR)
-		log.Debug(s.PrivateKey)
+		log.WithFields(logrus.Fields{logSubject: s.Subject}).Info("enrolling")
 
 		// A workaround for now; we don't need to process as fast as messages are being received.
 		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
@@ -56,6 +59,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
 			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
@@ -63,6 +67,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
@@ -74,20 +79,32 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		err = json.Unmarshal(res.Body(), &j)
 		if err != nil {
 			d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
 		if err := l.Publish(
 			CollectExchange, CollectQueue, "", "", CollectEvent{CertID: j.SslId}); err != nil {
+
+			log.WithFields(logrus.Fields{
+				logExchange: DbReplyExchange,
+				logQueue:    DbReplyQueue,
+				logCertID:   s.CertID}).Error(err)
+
 			return nil, false
 		}
-		log.Info("sub %d -> collect", j.SslId)
+
+		log.WithFields(logrus.Fields{
+			logExchange: CollectExchange,
+			logQueue:    CollectQueue,
+			logCertID:   j.SslId}).Info("published")
 
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
 
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbAddSubjCmd, NewSubjectEvent{
 			Subject:    s.Subject,
+			Port:       int(s.Port),
 			CSR:        s.CSR,
 			PrivateKey: s.PrivateKey,
 			CertID:     s.CertID,
@@ -95,8 +112,21 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			AltNames:   s.AltNames,
 			Targets:    s.Targets,
 		}); err != nil {
+
+			log.WithFields(logrus.Fields{
+				logExchange: DbReplyExchange,
+				logQueue:    DbReplyQueue,
+				logSubject:  s.Subject,
+				logCertID:   s.CertID}).Error(err)
+
 			return err, false
 		}
+
+		log.WithFields(logrus.Fields{
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logSubject:  s.Subject,
+			logCertID:   s.CertID}).Info("published")
 
 		return nil, false
 	})
@@ -125,11 +155,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
@@ -141,6 +173,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
 		); err != nil {
 			d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
 
@@ -173,6 +206,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		res, err := l.RestClient.Collect(s.CertID)
 		if err != nil {
 			err = d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
@@ -180,6 +214,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
 
@@ -188,8 +223,15 @@ func (l *Londo) ConsumeCollect() *Londo {
 			CertID:      s.CertID,
 			Certificate: s.Certificate,
 		}); err != nil {
+			d.Reject(true)
+			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
+
+		log.WithFields(logrus.Fields{
+			logExchange: DbReplyExchange,
+			logQueue:    DbReplyQueue,
+			logCertID:   s.CertID}).Info("published")
 
 		return nil, false
 	})
@@ -211,12 +253,12 @@ func (l *Londo) ConsumeGrpcReplies(
 		}
 
 		if s.Subject != "" {
-			log.WithFields(logrus.Fields{"queue": queue, "subject": s.Subject}).Info("consume")
+			log.WithFields(logrus.Fields{logQueue: queue, logSubject: s.Subject}).Info("consume")
 		}
 		ch <- s
 
 		if d.Type == CloseChannelCmd {
-			log.WithFields(logrus.Fields{"queue": queue, "cmd": CloseChannelCmd}).Debug("received")
+			log.WithFields(logrus.Fields{logQueue: queue, logCmd: CloseChannelCmd}).Debug("received")
 			if done != nil {
 				done <- struct{}{}
 			}
@@ -449,6 +491,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbAddSubjCmd:
 			subj, err := l.createNewSubject(&d)
 			if err != nil {
+				log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 				return err, false
 			}
 
@@ -457,6 +500,8 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbUpdateSubjCmd:
 			certId, err := l.updateSubject(&d)
 			if err != nil {
+				d.Reject(true)
+				log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 				return err, false
 			}
 
@@ -495,6 +540,7 @@ func (l *Londo) createNewSubject(d *amqp.Delivery) (string, error) {
 	return e.Subject, l.Db.InsertSubject(&Subject{
 		Subject:    e.Subject,
 		CSR:        e.CSR,
+		Port:       int32(e.Port),
 		PrivateKey: e.PrivateKey,
 		CertID:     e.CertID,
 		OrderID:    e.OrderID,
