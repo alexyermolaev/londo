@@ -13,6 +13,9 @@ const (
 	logTargets  = "targets"
 	logCertID   = "cert_id"
 	logReason   = "reason"
+	logLevel    = "level"
+	logName     = "name"
+	logPort     = "port"
 )
 
 func fail(err error) {

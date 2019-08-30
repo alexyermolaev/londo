@@ -26,8 +26,9 @@ var (
 	tokenCmd = cli.Command{
 		Name:    "token",
 		Aliases: []string{"t"},
-		Usage:   "issue new token for a target (i.e. IP address) system. it has to match a certificate subject target",
-		Action:  londocli.IssueToken,
+		Usage: "issue new token for a target (i.e. IP address) system. it has to match a " +
+			"certificate subject target",
+		Action: londocli.IssueToken,
 	}
 
 	tgtCmd = cli.Command{
@@ -53,14 +54,21 @@ var (
 	addSubjCmd = cli.Command{
 		Name:        "add",
 		Aliases:     []string{"a"},
-		Usage:       "add subject",
-		Description: "add new subject, its alternative names and distribution targets",
+		Usage:       "add a subject",
+		Description: "Adds a new subject, its alternative DNSNames, deployment targets and port.",
 		Flags: []cli.Flag{
 			cli.StringSliceFlag{
-				Name: "alt, a",
+				Name:  "alt, a",
+				Usage: "alternative `HOSTNAME` DNSName, can be specified multiple times",
 			},
 			cli.StringSliceFlag{
-				Name: "target, t",
+				Name:  "target, t",
+				Usage: "`IP` address of target deployment system, can be specified multiple times",
+			},
+			cli.IntFlag{
+				Name:  "port, p",
+				Usage: "`PORT` where certificate is going to be used",
+				Value: 443,
 			},
 		},
 		Action: londocli.AddSubject,

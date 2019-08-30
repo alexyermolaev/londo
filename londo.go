@@ -86,16 +86,19 @@ func init() {
 		DisableUppercase: true,
 	})
 
-	//if cfg.Debug == 1 {
-	//	log.Warn("debugging is on")
-	//	log.SetLevel(logrus.DebugLevel)
-	//}
-
-	log.Info("reading configuration")
+	log.Info("reading config")
 	cfg, err = ReadConfig()
 	if err != nil {
 		log.WithFields(logrus.Fields{logReason: err}).Error("cannot read config file")
 		os.Exit(1)
+	}
+
+	if cfg.Debug == 1 {
+		log.SetLevel(logrus.DebugLevel)
+		log.WithFields(logrus.Fields{logLevel: "debug"}).Warn("logging")
+	} else {
+		log.SetLevel(logrus.InfoLevel)
+		log.WithFields(logrus.Fields{logLevel: "info"}).Info("logging")
 	}
 }
 
@@ -109,7 +112,7 @@ type Londo struct {
 
 func (l *Londo) AMQPConnection() *Londo {
 
-	log.Info("Connecting to RabbitMQ...")
+	log.WithFields(logrus.Fields{logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("connecting to amqp")
 	l.AMQP, err = NewMQConnection(cfg, l.Db)
 	fail(err)
 
@@ -185,13 +188,12 @@ func S(name string) *Londo {
 		Name: name,
 	}
 
-	log.Info("Starting " + l.Name + " service...")
+	log.WithFields(logrus.Fields{logName: l.Name}).Info("initializing")
 
 	return l
 }
 
 func (l *Londo) GRPCServer() *Londo {
-	log.Info("initializing")
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	fail(err)
@@ -213,7 +215,7 @@ func (l *Londo) GRPCServer() *Londo {
 	reflection.Register(srv)
 
 	go func() {
-		log.Infof("server is running on port %d", cfg.GRPC.Port)
+		log.WithFields(logrus.Fields{logPort: cfg.GRPC.Port, logIP: "0.0.0.0"}).Info("ready")
 		if err := srv.Serve(lis); err != nil {
 			fail(err)
 		}
