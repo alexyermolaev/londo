@@ -67,15 +67,9 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 	}
 
 	for d := range delivery {
-		abort := f(d)
-
-		log.WithFields(logrus.Fields{logAction: "ack"}).Info("consumed")
-		d.Ack(false)
-
-		if abort {
+		if f(d) {
 			break
 		}
-
 	}
 
 	log.WithFields(logrus.Fields{logQueue: queue}).Debug("closed")

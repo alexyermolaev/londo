@@ -127,6 +127,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			logSubject:  s.Subject,
 			logCertID:   s.CertID}).Info("published")
 
+		d.Ack(false)
 		return false
 	})
 
@@ -185,9 +186,9 @@ func (l *Londo) ConsumeRenew() *Londo {
 		}); err != nil {
 			return false
 		}
-		//l.PublishNewSubject(&s)
-		log.Infof("sent %s subject for new enrollment", s.Subject)
 
+		log.Infof("sent %s subject for new enrollment", s.Subject)
+		d.Ack(false)
 		return false
 	})
 
@@ -237,6 +238,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 			logQueue:    DbReplyQueue,
 			logCertID:   s.CertID}).Info("published")
 
+		d.Ack(false)
 		return false
 	})
 
@@ -269,6 +271,7 @@ func (l *Londo) ConsumeGrpcReplies(
 			return true
 		}
 
+		d.Ack(false)
 		return false
 	})
 
@@ -339,6 +342,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 			logQueue:    DbReplyQueue,
 			logCmd:      DbUpdateCertStatusCmd}).Info("published")
 
+		d.Ack(false)
 		return false
 	})
 

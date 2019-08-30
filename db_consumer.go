@@ -53,6 +53,7 @@ func (l *Londo) dbUpdateSubject(d amqp.Delivery) bool {
 	}
 
 	log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbUpdateSubjCmd}).Info("success")
+	d.Ack(false)
 	return false
 }
 
@@ -65,6 +66,7 @@ func (l *Londo) dbAddSubject(d amqp.Delivery) bool {
 	}
 
 	log.WithFields(logrus.Fields{logSubject: subj, logCmd: DbAddSubjCmd}).Info("success")
+	d.Ack(false)
 	return false
 }
 
@@ -77,6 +79,7 @@ func (l *Londo) dbDeleteSubject(d amqp.Delivery) bool {
 	}
 
 	log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbDeleteSubjCmd}).Info("success")
+	d.Ack(false)
 	return false
 }
 
@@ -105,6 +108,7 @@ func (l *Londo) dbGetSubjects(d amqp.Delivery) bool {
 			logCmd:     DbGetSubjectCmd}).Info("published")
 	}
 
+	d.Ack(false)
 	return false
 }
 
@@ -163,6 +167,7 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 			logSubject: subjs[i].Subject}).Info("published")
 	}
 
+	d.Ack(false)
 	return false
 }
 
@@ -221,6 +226,7 @@ func (l *Londo) dbExpiringSubjects(d amqp.Delivery) bool {
 			logCmd:     DbGetExpiringSubjectsCmd}).Info("published")
 	}
 
+	d.Ack(false)
 	return false
 }
 
@@ -239,5 +245,6 @@ func (l *Londo) dbStatusUpdate(d amqp.Delivery) bool {
 		return false
 	}
 
+	d.Ack(false)
 	return false
 }
