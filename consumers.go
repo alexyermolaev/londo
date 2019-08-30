@@ -200,17 +200,21 @@ func (l *Londo) ConsumeCollect() *Londo {
 		// TODO: fix code duplication
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
+			d.Reject(false)
+			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
 			return err, false
 		}
+
+		log.WithFields(logrus.Fields{logCertID: s.CertID}).Info("collecting")
+
+		time.Sleep(1 * time.Minute)
 
 		res, err := l.RestClient.Collect(s.CertID)
 		if err != nil {
-			err = d.Reject(true)
+			d.Reject(true)
 			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
 			return err, false
 		}
-
-		time.Sleep(1 * time.Minute)
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
@@ -219,6 +223,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		}
 
 		s.Certificate = string(res.Body())
+
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateSubjCmd, CompleteEnrollEvent{
 			CertID:      s.CertID,
 			Certificate: s.Certificate,

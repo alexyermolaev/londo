@@ -77,5 +77,5 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 		}
 	}
 
-	log.WithFields(logrus.Fields{logQueue: queue}).Info("closed")
+	log.WithFields(logrus.Fields{logQueue: queue}).Debug("closed")
 }

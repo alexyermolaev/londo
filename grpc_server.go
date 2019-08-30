@@ -185,7 +185,8 @@ func (g *GRPCServer) AddNewSubject(
 			fmt.Sprintf("%s already exists", s))
 	}
 
-	sr.wg.Wait()
+	<-sr.doneChannel
+	//sr.wg.Wait()
 
 	if err = g.Londo.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 		Subject:  subj.Subject,
