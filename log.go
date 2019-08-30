@@ -1,5 +1,10 @@
 package londo
 
+import (
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
+)
+
 const (
 	logSubject  = "subject"
 	logIP       = "ip"
@@ -20,6 +25,9 @@ const (
 
 func fail(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.WithFields(logrus.Fields{logReason: err}).Fatal("crash")
 	}
+}
+
+func SetDebugLevel(c *cli.Context) {
 }

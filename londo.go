@@ -86,20 +86,6 @@ func init() {
 		DisableUppercase: true,
 	})
 
-	log.Info("reading config")
-	cfg, err = ReadConfig()
-	if err != nil {
-		log.WithFields(logrus.Fields{logReason: err}).Error("cannot read config file")
-		os.Exit(1)
-	}
-
-	if cfg.Debug == 1 {
-		log.SetLevel(logrus.DebugLevel)
-		log.WithFields(logrus.Fields{logLevel: "debug"}).Warn("logging")
-	} else {
-		log.SetLevel(logrus.InfoLevel)
-		log.WithFields(logrus.Fields{logLevel: "info"}).Info("logging")
-	}
 }
 
 type Londo struct {
@@ -112,7 +98,7 @@ type Londo struct {
 
 func (l *Londo) AMQPConnection() *Londo {
 
-	log.WithFields(logrus.Fields{logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("connecting to amqp")
+	log.WithFields(logrus.Fields{logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("amqp connection")
 	l.AMQP, err = NewMQConnection(cfg, l.Db)
 	fail(err)
 
@@ -176,7 +162,7 @@ func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
 func (l *Londo) DbService() *Londo {
 	var err error
 
-	log.Info("Connecting to the database...")
+	log.WithFields(logrus.Fields{logIP: cfg.DB.Hostname, logPort: cfg.DB.Port}).Info("db connection")
 	l.Db, err = NewDBConnection(cfg)
 	fail(err)
 
@@ -186,6 +172,21 @@ func (l *Londo) DbService() *Londo {
 func S(name string) *Londo {
 	l := &Londo{
 		Name: name,
+	}
+
+	if Debug {
+		log.SetLevel(logrus.DebugLevel)
+		log.WithFields(logrus.Fields{logLevel: "debug"}).Warn("logging")
+	} else {
+		log.SetLevel(logrus.InfoLevel)
+		log.WithFields(logrus.Fields{logLevel: "info"}).Info("logging")
+	}
+
+	log.Info("reading config")
+	cfg, err = ReadConfig()
+	if err != nil {
+		log.WithFields(logrus.Fields{logReason: err}).Error("cannot read config file")
+		os.Exit(1)
 	}
 
 	log.WithFields(logrus.Fields{logName: l.Name}).Info("initializing")

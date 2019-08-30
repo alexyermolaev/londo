@@ -33,7 +33,11 @@ func main() {
 	}
 }
 
-func defaultCommand(_ *cli.Context) error {
+func defaultCommand(c *cli.Context) error {
+	if c.Bool("debug") {
+		londo.Debug = true
+	}
+
 	return londo.S(name).
 		AMQPConnection().
 		RestAPIClient().

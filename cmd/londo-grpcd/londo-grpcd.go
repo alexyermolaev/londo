@@ -47,6 +47,8 @@ func init() {
 		app.Flags = append(app.Flags, f)
 	}
 
+	app.Action = defaultCommand
+
 	sort.Sort(cli.FlagsByName(app.Flags))
 }
 
@@ -56,7 +58,11 @@ func main() {
 	}
 }
 
-func defaultCommand(_ *cli.Context) error {
+func defaultCommand(c *cli.Context) error {
+	if c.Bool("debug") {
+		londo.Debug = true
+	}
+
 	return londo.S(name).
 		AMQPConnection().
 		Declare(
