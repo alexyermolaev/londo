@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -342,6 +343,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 		e.Match = false
 		e.Targets = nil
 		e.Outdated = nil
+		port := strconv.Itoa(int(e.Port))
 
 		// if dns can't resolve but it previous could, because unresolvable time was reset back to zero
 		if len(ips) == 0 && e.Unresolvable.IsZero() {
@@ -357,18 +359,28 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 			for _, ip := range ips {
 
-				serial, err := GetCertSerialNumber(ip.String(), e.Port, e.Subject)
+				i := ip.String()
+
+				serial, err := GetCertSerialNumber(i, port, e.Subject)
 				if err != nil {
-					log.Debug(err)
+
+					log.WithFields(logrus.Fields{
+						logger.Subject: e.Subject,
+						logger.IP:      i,
+						logger.Port:    port,
+						logger.Reason:  err,
+					}).Error("skipping")
+
+					continue
 				}
 
 				if serial.Cmp(&curSerial) == 0 {
-					e.Targets = append(e.Targets, ip.String())
+					e.Targets = append(e.Targets, i)
 					match++
 
 					log.WithFields(logrus.Fields{
 						logger.Subject: e.Subject,
-						logger.Target:  ip.String()}).Info("added")
+						logger.Target:  i}).Info("added")
 
 				} else {
 					e.Outdated = append(e.Outdated, ip.String())
@@ -376,12 +388,13 @@ func (l *Londo) ConsumeCheck() *Londo {
 					if Debug {
 						log.WithFields(logrus.Fields{
 							logger.Subject:  e.Subject,
+							logger.Outdated: i,
 							logger.Serial:   curSerial.String(),
 							logger.DbSerial: serial.String()}).Debug("added")
 					} else {
 						log.WithFields(logrus.Fields{
 							logger.Subject:  e.Subject,
-							logger.Outdated: ip.String()}).Info("added")
+							logger.Outdated: i}).Info("added")
 					}
 				}
 			}

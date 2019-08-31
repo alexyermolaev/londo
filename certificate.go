@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"math/big"
-	"strconv"
 )
 
 const (
@@ -91,8 +90,8 @@ func encodeBuffer(block *pem.Block) (string, error) {
 	return buf.String(), nil
 }
 
-func GetCertSerialNumber(ip string, port int32, sn string) (*big.Int, error) {
-	conn, err := tls.Dial("tcp", ip+":"+strconv.Itoa(int(port)), &tls.Config{
+func GetCertSerialNumber(ip string, port string, sn string) (*big.Int, error) {
+	conn, err := tls.Dial("tcp", ip+":"+port, &tls.Config{
 		ServerName: sn,
 	})
 	if err != nil {
