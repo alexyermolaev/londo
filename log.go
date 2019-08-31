@@ -22,6 +22,7 @@ const (
 	logName     = "name"
 	logPort     = "port"
 	logAction   = "action"
+	logCount    = "count"
 )
 
 func fail(err error) {

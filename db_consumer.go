@@ -3,7 +3,6 @@ package londo
 import (
 	"encoding/json"
 	"errors"
-
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
@@ -42,6 +41,48 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	})
 
 	return l
+}
+
+func (l *Londo) dbAllSubjects(d amqp.Delivery) bool {
+	subjs, err := l.Db.FindAllSubjects()
+	if err != nil {
+		d.Reject(false)
+		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		return false
+	}
+
+	var count int
+
+	for _, s := range subjs {
+
+		if err := l.Publish(CheckExchange, CheckQueue, "", "", CheckCertEvent{
+			Subject:      s.Subject,
+			Serial:       s.Serial,
+			Port:         s.Port,
+			Match:        s.Match,
+			Targets:      s.Targets,
+			Outdated:     s.Outdated,
+			Unresolvable: s.UnresolvableAt,
+		}); err != nil {
+			log.WithFields(logrus.Fields{logAction: "no_pub"}).Error(err)
+			continue
+		}
+
+		log.WithFields(logrus.Fields{
+			logExchange: CheckExchange,
+			logQueue:    CheckQueue,
+			logSubject:  s.Serial}).Debug("published")
+
+		count++
+	}
+
+	log.WithFields(logrus.Fields{
+		logExchange: CheckExchange,
+		logQueue:    CheckQueue,
+		logCount:    count,
+		logAction:   "published"}).Debug("subjects")
+
+	return false
 }
 
 func (l *Londo) dbUpdateSubject(d amqp.Delivery) bool {

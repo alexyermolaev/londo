@@ -195,7 +195,7 @@ func (m *MongoDB) getSubjCollection() *mongo.Collection {
 type Subject struct {
 	ID             primitive.ObjectID `bson:"_id"`
 	Subject        string             `bson:"subject"`
-	Port           int32              `bson:"port"`
+	Port           int                `bson:"port"`
 	CSR            string             `bson:"csr"`
 	PrivateKey     string             `bson:"private_key"`
 	Certificate    string             `bson:"certificate,omitempty"`
@@ -205,7 +205,7 @@ type Subject struct {
 	NotAfter       time.Time          `bson:"not_after"`
 	CreatedAt      time.Time          `bson:"created_at"`
 	UpdatedAt      time.Time          `bson:"updated_at"`
-	UnresolvableAT time.Time          `bson:"unresolvable_at,omitempty"`
+	UnresolvableAt time.Time          `bson:"unresolvable_at,omitempty"`
 	Targets        []string           `bson:"targets,omitempty"`
 	AltNames       []string           `bson:"alt_names,omitempty"`
 	Match          bool               `bson:"match"`
