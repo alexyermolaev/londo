@@ -175,7 +175,7 @@ func (m *MongoDB) UpdateUnreachable(e *CheckCertEvent) error {
 	filter := bson.M{"subject": e.Subject}
 	update := bson.D{
 		{"$set", bson.D{
-			{"unreachable_at", e.Unresolvable},
+			{"unresolvable_at", e.Unresolvable},
 			{"match", e.Match},
 			{"targets", e.Targets},
 			{"outdated", e.Outdated},
@@ -195,7 +195,7 @@ func (m *MongoDB) getSubjCollection() *mongo.Collection {
 type Subject struct {
 	ID             primitive.ObjectID `bson:"_id"`
 	Subject        string             `bson:"subject"`
-	Port           int                `bson:"port"`
+	Port           int32              `bson:"port"`
 	CSR            string             `bson:"csr"`
 	PrivateKey     string             `bson:"private_key"`
 	Certificate    string             `bson:"certificate,omitempty"`

@@ -32,6 +32,9 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 		case DbUpdateSubjCmd:
 			return l.dbUpdateSubject(d)
 
+		case DbGetAllSubjectsCmd:
+			return l.dbGetAllSubjects(d)
+
 		default:
 			d.Reject(false)
 			log.WithFields(logrus.Fields{logCmd: d.Type}).Error("unknown")
@@ -43,13 +46,15 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 	return l
 }
 
-func (l *Londo) dbAllSubjects(d amqp.Delivery) bool {
+func (l *Londo) dbGetAllSubjects(d amqp.Delivery) bool {
 	subjs, err := l.Db.FindAllSubjects()
 	if err != nil {
 		d.Reject(false)
 		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
 		return false
 	}
+
+	d.Ack(false)
 
 	var count int
 
@@ -71,7 +76,7 @@ func (l *Londo) dbAllSubjects(d amqp.Delivery) bool {
 		log.WithFields(logrus.Fields{
 			logExchange: CheckExchange,
 			logQueue:    CheckQueue,
-			logSubject:  s.Serial}).Debug("published")
+			logSubject:  s.Subject}).Debug("published")
 
 		count++
 	}
@@ -80,7 +85,7 @@ func (l *Londo) dbAllSubjects(d amqp.Delivery) bool {
 		logExchange: CheckExchange,
 		logQueue:    CheckQueue,
 		logCount:    count,
-		logAction:   "published"}).Debug("subjects")
+		logAction:   "published"}).Info("published")
 
 	return false
 }

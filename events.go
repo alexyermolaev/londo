@@ -121,7 +121,7 @@ func (ExpiringSubjectEvent) GetMessage() amqp.Publishing {
 type CheckCertEvent struct {
 	Subject  string
 	Serial   string
-	Port     int
+	Port     int32
 	Match    bool
 	Targets  []string
 	Outdated []string
@@ -130,5 +130,11 @@ type CheckCertEvent struct {
 }
 
 func (CheckCertEvent) GetMessage() amqp.Publishing {
+	return amqp.Publishing{}
+}
+
+type EmptyEvent struct{}
+
+func (EmptyEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{}
 }

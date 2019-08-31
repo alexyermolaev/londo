@@ -272,7 +272,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeGrpcReplies(
+func (l *Londo) ConsumeGRPCReplies(
 	queue string,
 	ch chan Subject,
 	done chan struct{},
@@ -311,57 +311,95 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if err := json.Unmarshal(d.Body, &e); err != nil {
 			d.Reject(false)
+			log.WithFields(logrus.Fields{logReason: err}).Error("rejected")
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("delivered")
+		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("received")
 
-		now := time.Now()
-		t := e.Unresolvable.Sub(now).Round(time.Hour).Hours()
+		now := time.Now().UTC()
+		t := now.Sub(e.Unresolvable).Round(time.Hour).Hours()
 
 		ips, err := net.LookupIP(e.Subject)
 
+		// if DNS cannot resolve the host and unresolvable time is larger than set number of hours
+		// but unresolvable time itself isn't a zero, revoke delete
 		// TODO: unhardcode this
-		if err != nil && t > 168 {
-			// delete/revoke
-			log.WithFields(logrus.Fields{logSubject: e.Subject}).Debug("delete")
+		if err != nil && t > 168 && !e.Unresolvable.IsZero() {
+			// TODO: delete/revoke
+			log.WithFields(logrus.Fields{
+				logSubject: e.Subject,
+				logHours:   int(t)}).Info("delete")
+
+			d.Ack(false)
+			return false
 		}
 
+		var curSerial big.Int
+		curSerial.SetString(e.Serial, 10)
+
+		e.Match = false
 		e.Targets = nil
 		e.Outdated = nil
 
-		var curSerial big.Int
-		cs, _ := curSerial.SetString(e.Serial, 10)
-
-		if err != nil {
+		// if dns can't resolve but it previous could, because unresolvable time was reset back to zero
+		if len(ips) == 0 && e.Unresolvable.IsZero() {
 			e.Unresolvable = now
 
-			log.WithFields(logrus.Fields{logSubject: e.Subject}).Debug("unreachable")
+			log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("unreachable")
+		}
 
-		} else {
+		// we have an array of IPs and unresolvable time is zero
+		if len(ips) != 0 {
+			e.Unresolvable = time.Time{}
+			var match int
+
 			for _, ip := range ips {
-				serial, _ := GetCertSerialNumber(ip.String(), e.Port)
 
-				if serial.Cmp(cs) == 0 {
+				serial, err := GetCertSerialNumber(ip.String(), e.Port, e.Subject)
+				if err != nil {
+					log.Debug(err)
+				}
+
+				if serial.Cmp(&curSerial) == 0 {
 					e.Targets = append(e.Targets, ip.String())
-					e.Match = true
+					match++
 
 					log.WithFields(logrus.Fields{
 						logSubject: e.Subject,
-						logTarget:  ip.String()}).Debug("target added")
+						logTarget:  ip.String()}).Info("added")
 
 				} else {
 					e.Outdated = append(e.Outdated, ip.String())
-					e.Match = false
 
-					log.WithFields(logrus.Fields{
-						logSubject: e.Subject,
-						logTarget:  ip.String()}).Debug("outdated added")
+					if Debug {
+						log.WithFields(logrus.Fields{
+							logSubject:  e.Subject,
+							logSerial:   curSerial.String(),
+							logDbSerial: serial.String()}).Debug("added")
+					} else {
+						log.WithFields(logrus.Fields{
+							logSubject:  e.Subject,
+							logOutdated: ip.String()}).Info("added")
+					}
 				}
+			}
+
+			if len(ips) == match {
+				e.Match = true
 			}
 		}
 
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
+			d.Reject(false)
+
+			log.WithFields(logrus.Fields{
+				logSubject:  e.Subject,
+				logExchange: DbReplyExchange,
+				logQueue:    DbReplyQueue,
+				logReason:   err,
+				logCmd:      DbUpdateCertStatusCmd}).Error("rejected")
+
 			return false
 		}
 
@@ -401,7 +439,7 @@ func (l *Londo) createNewSubject(d *amqp.Delivery) (string, error) {
 	return e.Subject, l.Db.InsertSubject(&Subject{
 		Subject:    e.Subject,
 		CSR:        e.CSR,
-		Port:       int32(e.Port),
+		Port:       e.Port,
 		PrivateKey: e.PrivateKey,
 		CertID:     e.CertID,
 		OrderID:    e.OrderID,

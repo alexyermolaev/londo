@@ -15,6 +15,7 @@ const (
 	logDays     = "days"
 	logCode     = "code"
 	logTarget   = "target"
+	logOutdated = "outdated"
 	logTargets  = "targets"
 	logCertID   = "cert_id"
 	logReason   = "reason"
@@ -23,6 +24,10 @@ const (
 	logPort     = "port"
 	logAction   = "action"
 	logCount    = "count"
+	logHours    = "hours"
+	logSerial   = "remote_serial"
+	logDbSerial = "db_serial"
+	logService  = "service"
 )
 
 func fail(err error) {

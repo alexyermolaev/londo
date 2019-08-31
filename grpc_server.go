@@ -399,7 +399,7 @@ func (g *GRPCServer) setupRequest(ctx context.Context) (*requestSetup, error) {
 
 	rs.wg.Add(1)
 
-	g.Londo.ConsumeGrpcReplies(addr, rs.replyChannel, rs.doneChannel, &rs.wg)
+	g.Londo.ConsumeGRPCReplies(addr, rs.replyChannel, rs.doneChannel, &rs.wg)
 
 	return rs, nil
 }

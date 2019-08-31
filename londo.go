@@ -82,7 +82,6 @@ func init() {
 	// Logging
 	log.SetFormatter(&prefixed.TextFormatter{
 		FullTimestamp:    true,
-		SpacePadding:     20,
 		DisableUppercase: true,
 	})
 
@@ -98,9 +97,10 @@ type Londo struct {
 
 func (l *Londo) AMQPConnection() *Londo {
 
-	log.WithFields(logrus.Fields{logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("amqp connection")
 	l.AMQP, err = NewMQConnection(cfg, l.Db)
 	fail(err)
+
+	log.WithFields(logrus.Fields{logService: "amqp", logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("connected")
 
 	return l
 }

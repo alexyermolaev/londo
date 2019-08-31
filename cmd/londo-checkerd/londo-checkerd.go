@@ -63,6 +63,11 @@ func defaultCommand(c *cli.Context) error {
 			londo.DbReplyExchange,
 			londo.DbReplyQueue,
 			amqp.ExchangeDirect, nil).
+		Declare(
+			londo.CheckExchange,
+			londo.CheckQueue,
+			amqp.ExchangeDirect, nil).
+		PublishPeriodicly(1).
 		ConsumeCheck().
 		Run()
 }
