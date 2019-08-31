@@ -169,14 +169,16 @@ func (m *MongoDB) FineManySubjects(s []string) ([]Subject, error) {
 	return res, nil
 }
 
-func (m *MongoDB) UpdateUnreachable(subj *string, unreach *time.Time, match *bool) error {
+func (m *MongoDB) UpdateUnreachable(e *CheckCertEvent) error {
 	col := m.getSubjCollection()
 
-	filter := bson.M{"subject": subj}
+	filter := bson.M{"subject": e.Subject}
 	update := bson.D{
 		{"$set", bson.D{
-			{"unreachable_at", unreach},
-			{"no_match", match},
+			{"unreachable_at", e.Unresolvable},
+			{"match", e.Match},
+			{"targets", e.Targets},
+			{"outdated", e.Outdated},
 			{"updated_at", time.Now()},
 		}},
 	}
@@ -196,17 +198,18 @@ type Subject struct {
 	Port           int32              `bson:"port"`
 	CSR            string             `bson:"csr"`
 	PrivateKey     string             `bson:"private_key"`
-	Certificate    string             `bson:"certificate"`
+	Certificate    string             `bson:"certificate,omitempty"`
 	Serial         string             `bson:"serial"`
 	CertID         int                `bson:"cert_id"`
 	OrderID        string             `bson:"order_id"`
 	NotAfter       time.Time          `bson:"not_after"`
 	CreatedAt      time.Time          `bson:"created_at"`
 	UpdatedAt      time.Time          `bson:"updated_at"`
-	UnresolvableAT time.Time          `bson:"unresolvable_at"`
-	Targets        []string           `bson:"targets"`
-	AltNames       []string           `bson:"alt_names"`
-	NoMatch        bool               `bson:"no_match"`
+	UnresolvableAT time.Time          `bson:"unresolvable_at,omitempty"`
+	Targets        []string           `bson:"targets,omitempty"`
+	AltNames       []string           `bson:"alt_names,omitempty"`
+	Match          bool               `bson:"match"`
+	Outdated       []string           `bson:"outdated,omitempty"`
 }
 
 func (Subject) GetMessage() amqp.Publishing {

@@ -119,11 +119,12 @@ func (ExpiringSubjectEvent) GetMessage() amqp.Publishing {
 }
 
 type CheckCertEvent struct {
-	Subject string
-	Serial  int64
-	Port    int
-	NoMatch bool
-	Targets []string
+	Subject  string
+	Serial   string
+	Port     int
+	Match    bool
+	Targets  []string
+	Outdated []string
 	// TODO: it may not be possible to deserialize it and from JSON
 	Unresolvable time.Time
 }

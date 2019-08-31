@@ -239,7 +239,7 @@ func (l *Londo) dbStatusUpdate(d amqp.Delivery) bool {
 	log.WithFields(logrus.Fields{
 		logSubject: e.Subject, logCmd: DbUpdateCertStatusCmd}).Info("consumed")
 
-	if err := l.Db.UpdateUnreachable(&e.Subject, &e.Unresolvable, &e.NoMatch); err != nil {
+	if err := l.Db.UpdateUnreachable(&e); err != nil {
 		d.Reject(false)
 		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
 		return false

@@ -308,55 +308,57 @@ func (l *Londo) ConsumeGrpcReplies(
 func (l *Londo) ConsumeCheck() *Londo {
 	go l.AMQP.Consume(CheckQueue, nil, func(d amqp.Delivery) bool {
 		var e CheckCertEvent
+
 		if err := json.Unmarshal(d.Body, &e); err != nil {
+			d.Reject(false)
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("consumed")
+		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("delivered")
 
 		now := time.Now()
 		t := e.Unresolvable.Sub(now).Round(time.Hour).Hours()
 
 		ips, err := net.LookupIP(e.Subject)
-		if err != nil {
-			// ???? what's this?
-			d.Reject(false)
-			return false
+
+		// TODO: unhardcode this
+		if err != nil && t > 168 {
+			// delete/revoke
+			log.WithFields(logrus.Fields{logSubject: e.Subject}).Debug("delete")
 		}
 
-		// Cannot resolve and unreachable date is too old
-		// delete and revoke certificate
-		// TODO: unhardcode this via flag, config and env
-		if t > 168 && len(ips) == 0 {
-			// TODO: delete/revoke
-			d.Reject(false)
-		}
-
-		// cannot resolve ip but no unreachable date set
-		if len(ips) == 0 {
-			e.Unresolvable = time.Now()
-			if err := l.Publish(
-				DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
-				return false
-			}
-			return false
-		}
-
-		// Verify remote host serial number. Serial numbers have to match
-		serial, err := GetCertSerialNumber(e.Subject, e.Port)
-		if err != nil {
-			e.Unresolvable = time.Now()
-		} else {
-			i := big.NewInt(e.Serial)
-			if serial.Cmp(i) != 0 {
-				e.NoMatch = true
-			}
-		}
-
-		// Looking good, update targets
 		e.Targets = nil
-		for _, ip := range ips {
-			e.Targets = append(e.Targets, ip.String())
+		e.Outdated = nil
+
+		var curSerial big.Int
+		cs, _ := curSerial.SetString(e.Serial, 10)
+
+		if err != nil {
+			e.Unresolvable = now
+
+			log.WithFields(logrus.Fields{logSubject: e.Subject}).Debug("unreachable")
+
+		} else {
+			for _, ip := range ips {
+				serial, _ := GetCertSerialNumber(ip.String(), e.Port)
+
+				if serial.Cmp(cs) == 0 {
+					e.Targets = append(e.Targets, ip.String())
+					e.Match = true
+
+					log.WithFields(logrus.Fields{
+						logSubject: e.Subject,
+						logTarget:  ip.String()}).Debug("target added")
+
+				} else {
+					e.Outdated = append(e.Outdated, ip.String())
+					e.Match = false
+
+					log.WithFields(logrus.Fields{
+						logSubject: e.Subject,
+						logTarget:  ip.String()}).Debug("outdated added")
+				}
+			}
 		}
 
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {

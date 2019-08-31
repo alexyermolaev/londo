@@ -91,8 +91,8 @@ func encodeBuffer(block *pem.Block) (string, error) {
 	return buf.String(), nil
 }
 
-func GetCertSerialNumber(subject string, port int) (*big.Int, error) {
-	conn, err := tls.Dial("tcp", subject+":"+strconv.Itoa(port), &tls.Config{})
+func GetCertSerialNumber(ip string, port int) (*big.Int, error) {
+	conn, err := tls.Dial("tcp", ip+":"+strconv.Itoa(port), &tls.Config{})
 	if err != nil {
 		return nil, err
 	}
