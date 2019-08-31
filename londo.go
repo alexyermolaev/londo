@@ -2,11 +2,11 @@ package londo
 
 import (
 	"fmt"
-	"github.com/alexyermolaev/londo/logger"
 	"net"
 	"os"
 	"os/signal"
 
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/alexyermolaev/londo/londopb"
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcAuth "github.com/grpc-ecosystem/go-grpc-middleware/auth"

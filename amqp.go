@@ -1,10 +1,10 @@
 package londo
 
 import (
-	"github.com/alexyermolaev/londo/logger"
 	"strconv"
 	"sync"
 
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )

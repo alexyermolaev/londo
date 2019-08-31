@@ -2,13 +2,13 @@ package londo
 
 import (
 	"encoding/json"
-	"github.com/alexyermolaev/londo/logger"
 	"math/big"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )

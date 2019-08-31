@@ -3,13 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
-	"github.com/alexyermolaev/londo"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/alexyermolaev/londo"
 	"github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"

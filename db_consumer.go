@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+
 	"github.com/alexyermolaev/londo/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"

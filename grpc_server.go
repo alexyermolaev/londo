@@ -3,10 +3,10 @@ package londo
 import (
 	"context"
 	"fmt"
-	"github.com/alexyermolaev/londo/logger"
 	"sync"
 
 	"github.com/alexyermolaev/londo/jwt"
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/alexyermolaev/londo/londopb"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/sirupsen/logrus"
