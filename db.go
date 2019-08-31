@@ -125,7 +125,7 @@ func (m *MongoDB) UpdateSubjCert(certId *int, cert *string, na *time.Time, sn *b
 		{"$set", bson.D{
 			{"certificate", cert},
 			{"not_after", na},
-			{"serial_number", sn},
+			{"serial", sn.String()},
 			{"updated_at", time.Now()},
 			{"no_match", true},
 		}},
@@ -197,7 +197,7 @@ type Subject struct {
 	CSR            string             `bson:"csr"`
 	PrivateKey     string             `bson:"private_key"`
 	Certificate    string             `bson:"certificate"`
-	Serial         int64              `bson:"serial"`
+	Serial         string             `bson:"serial"`
 	CertID         int                `bson:"cert_id"`
 	OrderID        string             `bson:"order_id"`
 	NotAfter       time.Time          `bson:"not_after"`

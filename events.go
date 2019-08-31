@@ -78,7 +78,7 @@ func (GetSubjectByTargetEvent) GetMessage() amqp.Publishing {
 
 type NewSubjectEvent struct {
 	Subject    string
-	Port       int
+	Port       int32
 	CSR        string
 	PrivateKey string
 	CertID     int

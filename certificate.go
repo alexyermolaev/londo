@@ -18,13 +18,13 @@ import (
 const (
 	CsrType        = "CERTIFICATE REQUEST"
 	PrivateKeyType = "PRIVATE KEY"
-	PublickKeyType = "CERTIFICATE"
+	PublicKeyType  = "CERTIFICATE"
 )
 
 func ParsePublicCertificate(c string) (*x509.Certificate, error) {
 	block, _ := pem.Decode([]byte(c))
 
-	if block == nil || block.Type != PublickKeyType {
+	if block == nil || block.Type != PublicKeyType {
 		return nil, errors.New("failed to decode PEM block containing public key")
 	}
 

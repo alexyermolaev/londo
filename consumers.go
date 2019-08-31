@@ -103,7 +103,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbAddSubjCmd, NewSubjectEvent{
 			Subject:    s.Subject,
-			Port:       int(s.Port),
+			Port:       s.Port,
 			CSR:        s.CSR,
 			PrivateKey: s.PrivateKey,
 			CertID:     s.CertID,
