@@ -1,6 +1,7 @@
 package londo
 
 import (
+	"github.com/alexyermolaev/londo/logger"
 	"strconv"
 	"sync"
 
@@ -51,7 +52,7 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 		defer wg.Done()
 	}
 
-	log.WithFields(logrus.Fields{logQueue: queue}).Info("consuming")
+	log.WithFields(logrus.Fields{logger.Queue: queue}).Info("consuming")
 
 	ch, err := a.connection.Channel()
 	defer ch.Close()
@@ -72,5 +73,5 @@ func (a *AMQP) Consume(queue string, wg *sync.WaitGroup, f func(d amqp.Delivery)
 		}
 	}
 
-	log.WithFields(logrus.Fields{logQueue: queue}).Debug("closed")
+	log.WithFields(logrus.Fields{logger.Queue: queue}).Debug("closed")
 }

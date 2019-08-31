@@ -3,6 +3,7 @@ package londo
 import (
 	"encoding/json"
 	"errors"
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
@@ -37,7 +38,7 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 
 		default:
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logCmd: d.Type}).Error("unknown")
+			log.WithFields(logrus.Fields{logger.Cmd: d.Type}).Error("unknown")
 		}
 
 		return false
@@ -50,7 +51,7 @@ func (l *Londo) dbGetAllSubjects(d amqp.Delivery) bool {
 	subjs, err := l.Db.FindAllSubjects()
 	if err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 
@@ -69,23 +70,23 @@ func (l *Londo) dbGetAllSubjects(d amqp.Delivery) bool {
 			Outdated:     s.Outdated,
 			Unresolvable: s.UnresolvableAt,
 		}); err != nil {
-			log.WithFields(logrus.Fields{logAction: "no_pub"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "no_pub"}).Error(err)
 			continue
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: CheckExchange,
-			logQueue:    CheckQueue,
-			logSubject:  s.Subject}).Debug("published")
+			logger.Exchange: CheckExchange,
+			logger.Queue:    CheckQueue,
+			logger.Subject:  s.Subject}).Debug("published")
 
 		count++
 	}
 
 	log.WithFields(logrus.Fields{
-		logExchange: CheckExchange,
-		logQueue:    CheckQueue,
-		logCount:    count,
-		logAction:   "published"}).Info("published")
+		logger.Exchange: CheckExchange,
+		logger.Queue:    CheckQueue,
+		logger.Count:    count,
+		logger.Action:   "published"}).Info("published")
 
 	return false
 }
@@ -94,11 +95,11 @@ func (l *Londo) dbUpdateSubject(d amqp.Delivery) bool {
 	certId, err := l.updateSubject(&d)
 	if err != nil {
 		d.Reject(true)
-		log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 		return false
 	}
 
-	log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbUpdateSubjCmd}).Info("success")
+	log.WithFields(logrus.Fields{logger.CertID: certId, logger.Cmd: DbUpdateSubjCmd}).Info("success")
 	d.Ack(false)
 	return false
 }
@@ -107,11 +108,11 @@ func (l *Londo) dbAddSubject(d amqp.Delivery) bool {
 	subj, err := l.createNewSubject(&d)
 	if err != nil {
 		d.Reject(true)
-		log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 		return false
 	}
 
-	log.WithFields(logrus.Fields{logSubject: subj, logCmd: DbAddSubjCmd}).Info("success")
+	log.WithFields(logrus.Fields{logger.Subject: subj, logger.Cmd: DbAddSubjCmd}).Info("success")
 	d.Ack(false)
 	return false
 }
@@ -120,11 +121,11 @@ func (l *Londo) dbDeleteSubject(d amqp.Delivery) bool {
 	certId, err := l.deleteSubject(&d)
 	if err != nil {
 		d.Reject(true)
-		log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 		return false
 	}
 
-	log.WithFields(logrus.Fields{logCertID: certId, logCmd: DbDeleteSubjCmd}).Info("success")
+	log.WithFields(logrus.Fields{logger.CertID: certId, logger.Cmd: DbDeleteSubjCmd}).Info("success")
 	d.Ack(false)
 	return false
 }
@@ -134,7 +135,7 @@ func (l *Londo) dbGetSubjects(d amqp.Delivery) bool {
 	if err := json.Unmarshal(d.Body, &e); err != nil {
 		// TODO: need to reply back to sender with an error
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 
@@ -149,9 +150,9 @@ func (l *Londo) dbGetSubjects(d amqp.Delivery) bool {
 		log.Error(errors.New("subject " + e.Subject + " not found"))
 	} else {
 		log.WithFields(logrus.Fields{
-			logQueue:   d.ReplyTo,
-			logSubject: subj.Subject,
-			logCmd:     DbGetSubjectCmd}).Info("published")
+			logger.Queue:   d.ReplyTo,
+			logger.Subject: subj.Subject,
+			logger.Cmd:     DbGetSubjectCmd}).Info("published")
 	}
 
 	d.Ack(false)
@@ -162,17 +163,17 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 	var e GetSubjectByTargetEvent
 	if err := json.Unmarshal(d.Body, &e); err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 
 	log.WithFields(logrus.Fields{
-		logCmd: DbGetSubjectByTargetCmd, logTargets: e.Target}).Info("get")
+		logger.Cmd: DbGetSubjectByTargetCmd, logger.Targets: e.Target}).Info("get")
 
 	subjs, err := l.Db.FineManySubjects(e.Target)
 	if err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 
@@ -184,12 +185,12 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 		if err := l.Publish(
 			GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logQueue: d.ReplyTo, logCmd: DbGetSubjectByTargetCmd}).Error("none")
+			logger.Queue: d.ReplyTo, logger.Cmd: DbGetSubjectByTargetCmd}).Error("none")
 
 		return false
 	}
@@ -203,14 +204,14 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 		if err := l.Publish(
 			GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, &subjs[i]); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logQueue:   d.ReplyTo,
-			logCmd:     DbGetSubjectByTargetCmd,
-			logSubject: subjs[i].Subject}).Info("published")
+			logger.Queue:   d.ReplyTo,
+			logger.Cmd:     DbGetSubjectByTargetCmd,
+			logger.Subject: subjs[i].Subject}).Info("published")
 	}
 
 	d.Ack(false)
@@ -224,12 +225,12 @@ func (l *Londo) dbExpiringSubjects(d amqp.Delivery) bool {
 	}
 
 	log.WithFields(logrus.Fields{
-		logDays: e.Days, logCmd: DbGetExpiringSubjectsCmd}).Info("consumed")
+		logger.Days: e.Days, logger.Cmd: DbGetExpiringSubjectsCmd}).Info("consumed")
 
 	exp, err := l.Db.FindExpiringSubjects(24 * int(e.Days))
 	if err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 
@@ -242,13 +243,13 @@ func (l *Londo) dbExpiringSubjects(d amqp.Delivery) bool {
 		if err := l.Publish(
 			GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logQueue: d.ReplyTo,
-			logCmd:   DbGetExpiringSubjectsCmd}).Error("none")
+			logger.Queue: d.ReplyTo,
+			logger.Cmd:   DbGetExpiringSubjectsCmd}).Error("none")
 
 		return false
 	}
@@ -262,14 +263,14 @@ func (l *Londo) dbExpiringSubjects(d amqp.Delivery) bool {
 		if err := l.Publish(
 			GRPCServerExchange, d.ReplyTo, d.ReplyTo, cmd, exp[i]); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logQueue:   d.ReplyTo,
-			logSubject: exp[i].Subject,
-			logCmd:     DbGetExpiringSubjectsCmd}).Info("published")
+			logger.Queue:   d.ReplyTo,
+			logger.Subject: exp[i].Subject,
+			logger.Cmd:     DbGetExpiringSubjectsCmd}).Info("published")
 	}
 
 	d.Ack(false)
@@ -283,11 +284,11 @@ func (l *Londo) dbStatusUpdate(d amqp.Delivery) bool {
 	}
 
 	log.WithFields(logrus.Fields{
-		logSubject: e.Subject, logCmd: DbUpdateCertStatusCmd}).Info("consumed")
+		logger.Subject: e.Subject, logger.Cmd: DbUpdateCertStatusCmd}).Info("consumed")
 
 	if err := l.Db.UpdateUnreachable(&e); err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logAction: "reject"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Action: "reject"}).Error(err)
 		return false
 	}
 

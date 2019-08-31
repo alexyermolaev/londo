@@ -2,6 +2,7 @@ package londo
 
 import (
 	"fmt"
+	"github.com/alexyermolaev/londo/logger"
 	"net"
 	"os"
 	"os/signal"
@@ -98,9 +99,9 @@ type Londo struct {
 func (l *Londo) AMQPConnection() *Londo {
 
 	l.AMQP, err = NewMQConnection(cfg, l.Db)
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logService: "amqp", logIP: cfg.AMQP.Hostname, logPort: cfg.AMQP.Port}).Info("connected")
+	log.WithFields(logrus.Fields{logger.Service: "amqp", logger.IP: cfg.AMQP.Hostname, logger.Port: cfg.AMQP.Port}).Info("connected")
 
 	return l
 }
@@ -108,21 +109,21 @@ func (l *Londo) AMQPConnection() *Londo {
 func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Table) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logExchange: exchange}).Info("declaring")
+	log.WithFields(logrus.Fields{logger.Exchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logQueue: queue}).Info("declaring")
+	log.WithFields(logrus.Fields{logger.Queue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(
 		queue, false, false, false, false, args)
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logQueue: q.Name}).Info("binding")
+	log.WithFields(logrus.Fields{logger.Queue: q.Name}).Info("binding")
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
-	fail(err)
+	logger.Fail(err)
 
 	return l
 }
@@ -131,12 +132,12 @@ func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Ta
 func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logExchange: exchange}).Info("declaring")
+	log.WithFields(logrus.Fields{logger.Exchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
-	fail(err)
+	logger.Fail(err)
 
 	return l
 }
@@ -145,15 +146,15 @@ func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
 func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	fail(err)
+	logger.Fail(err)
 
-	log.WithFields(logrus.Fields{logQueue: queue}).Info("declaring")
+	log.WithFields(logrus.Fields{logger.Queue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(queue, false, true, false, false, nil)
 	if err != nil {
 		return err
 	}
 
-	log.WithFields(logrus.Fields{logQueue: q.Name}).Info("binding")
+	log.WithFields(logrus.Fields{logger.Queue: q.Name}).Info("binding")
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
 
 	return err
@@ -162,9 +163,9 @@ func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
 func (l *Londo) DbService() *Londo {
 	var err error
 
-	log.WithFields(logrus.Fields{logIP: cfg.DB.Hostname, logPort: cfg.DB.Port}).Info("db connection")
+	log.WithFields(logrus.Fields{logger.IP: cfg.DB.Hostname, logger.Port: cfg.DB.Port}).Info("db connection")
 	l.Db, err = NewDBConnection(cfg)
-	fail(err)
+	logger.Fail(err)
 
 	return l
 }
@@ -176,20 +177,20 @@ func S(name string) *Londo {
 
 	if Debug {
 		log.SetLevel(logrus.DebugLevel)
-		log.WithFields(logrus.Fields{logLevel: "debug"}).Warn("logging")
+		log.WithFields(logrus.Fields{logger.Level: "debug"}).Warn("logging")
 	} else {
 		log.SetLevel(logrus.InfoLevel)
-		log.WithFields(logrus.Fields{logLevel: "info"}).Info("logging")
+		log.WithFields(logrus.Fields{logger.Level: "info"}).Info("logging")
 	}
 
 	log.Info("reading config")
 	cfg, err = ReadConfig()
 	if err != nil {
-		log.WithFields(logrus.Fields{logReason: err}).Error("cannot read config file")
+		log.WithFields(logrus.Fields{logger.Reason: err}).Error("cannot read config file")
 		os.Exit(1)
 	}
 
-	log.WithFields(logrus.Fields{logName: l.Name}).Info("initializing")
+	log.WithFields(logrus.Fields{logger.Name: l.Name}).Info("initializing")
 
 	return l
 }
@@ -197,7 +198,7 @@ func S(name string) *Londo {
 func (l *Londo) GRPCServer() *Londo {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
-	fail(err)
+	logger.Fail(err)
 
 	opts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(
@@ -216,9 +217,9 @@ func (l *Londo) GRPCServer() *Londo {
 	reflection.Register(srv)
 
 	go func() {
-		log.WithFields(logrus.Fields{logPort: cfg.GRPC.Port, logIP: "0.0.0.0"}).Info("ready")
+		log.WithFields(logrus.Fields{logger.Port: cfg.GRPC.Port, logger.IP: "0.0.0.0"}).Info("ready")
 		if err := srv.Serve(lis); err != nil {
-			fail(err)
+			logger.Fail(err)
 		}
 	}()
 

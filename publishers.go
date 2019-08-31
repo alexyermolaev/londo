@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"github.com/alexyermolaev/londo/logger"
 	"github.com/roylee0704/gron"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -44,24 +45,24 @@ func (l *Londo) PublishPeriodicly(hours int) *Londo {
 			EmptyEvent{},
 		); err != nil {
 			log.WithFields(logrus.Fields{
-				logExchange: DbReplyExchange,
-				logQueue:    DbReplyQueue,
-				logSubject:  "all",
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.Subject:  "all",
 			}).Error(err)
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logSubject:  "all",
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Subject:  "all",
 		}).Info("published")
 	})
 
 	log.WithFields(logrus.Fields{
-		logHours:    hours,
-		logService:  "publishing",
-		logQueue:    CheckQueue,
-		logExchange: CheckExchange}).Info("scheduled")
+		logger.Hours:    hours,
+		logger.Service:  "publishing",
+		logger.Queue:    CheckQueue,
+		logger.Exchange: CheckExchange}).Info("scheduled")
 
 	c.Start()
 

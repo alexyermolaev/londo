@@ -3,6 +3,7 @@ package londo
 import (
 	"context"
 	"fmt"
+	"github.com/alexyermolaev/londo/logger"
 	"sync"
 
 	"github.com/alexyermolaev/londo/jwt"
@@ -21,7 +22,7 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 	ip, _, err := ParseIPAddr(ctx)
 	if err != nil {
 
-		log.WithFields(logrus.Fields{logData: "ip"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Data: "ip"}).Error(err)
 
 		return nil, status.Errorf(
 			codes.Internal,
@@ -30,13 +31,13 @@ func (g *GRPCServer) GetToken(ctx context.Context, req *londopb.GetTokenRequest)
 
 	token, err := jwt.IssueJWT(ip)
 	if err != nil {
-		log.WithFields(logrus.Fields{logData: "jwt"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Data: "jwt"}).Error(err)
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprint("server error"))
 	}
 
-	log.WithFields(logrus.Fields{logIP: ip}).Info("update token")
+	log.WithFields(logrus.Fields{logger.IP: ip}).Info("update token")
 	return &londopb.GetTokenResponse{
 		Token: &londopb.JWTToken{
 			Token: string(token),
@@ -51,7 +52,7 @@ func (g *GRPCServer) RenewSubjects(
 
 	sr, err := g.setupRequest(stream.Context())
 	if err != nil {
-		log.WithFields(logrus.Fields{logReason: err}).Error("abort")
+		log.WithFields(logrus.Fields{logger.Reason: err}).Error("abort")
 		return status.Errorf(
 			codes.Internal,
 			fmt.Sprint("server error"))
@@ -65,25 +66,25 @@ func (g *GRPCServer) RenewSubjects(
 			DbGetSubjectCmd,
 			GetSubjectEvent{Subject: s},
 		); err != nil {
-			log.WithFields(logrus.Fields{logReason: err}).Error("abort")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("abort")
 			return status.Errorf(
 				codes.Internal,
 				fmt.Sprint("server error"))
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logCmd:      DbGetSubjectCmd,
-			logIP:       sr.ip}).Info("get")
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Cmd:      DbGetSubjectCmd,
+			logger.IP:       sr.ip}).Info("get")
 
 		rs := <-sr.replyChannel
 
 		if rs.Subject == "" {
 			log.WithFields(logrus.Fields{
-				logCode:    codes.NotFound,
-				logIP:      sr.ip,
-				logSubject: s}).Error("not found")
+				logger.Code:    codes.NotFound,
+				logger.IP:      sr.ip,
+				logger.Subject: s}).Error("not found")
 			return status.Errorf(
 				codes.NotFound,
 				fmt.Sprintf("%s not found", s))
@@ -106,9 +107,9 @@ func (g *GRPCServer) RenewSubjects(
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: RenewExchange,
-			logQueue:    RenewQueue,
-			logSubject:  rs.Subject}).Info("published")
+			logger.Exchange: RenewExchange,
+			logger.Queue:    RenewQueue,
+			logger.Subject:  rs.Subject}).Info("published")
 
 		res := &londopb.RenewResponse{
 			Subject: &londopb.RenewSubject{
@@ -134,7 +135,7 @@ func (g *GRPCServer) GetExpiringSubject(
 		return err
 	}
 
-	log.WithFields(logrus.Fields{logIP: sr.ip, logDays: d}).Info("get expiring subjects")
+	log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Days: d}).Info("get expiring subjects")
 
 	if err := g.Londo.Publish(
 		DbReplyExchange,
@@ -165,7 +166,7 @@ func (g *GRPCServer) DeleteSubject(
 		return nil, err
 	}
 
-	log.WithFields(logrus.Fields{logIP: ip, logSubject: s}).Info("revoke")
+	log.WithFields(logrus.Fields{logger.IP: ip, logger.Subject: s}).Info("revoke")
 
 	return nil, err
 }
@@ -186,7 +187,7 @@ func (g *GRPCServer) AddNewSubject(
 		return nil, err
 	}
 
-	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: sr.addr}).Info("get")
+	log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Subject: s, logger.Queue: sr.addr}).Info("get")
 
 	if err := g.Londo.Publish(
 		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
@@ -198,9 +199,9 @@ func (g *GRPCServer) AddNewSubject(
 	if rs.Subject != "" {
 
 		log.WithFields(logrus.Fields{
-			logIP:      sr.ip,
-			logSubject: s,
-			logCode:    codes.AlreadyExists}).Error("already exists")
+			logger.IP:      sr.ip,
+			logger.Subject: s,
+			logger.Code:    codes.AlreadyExists}).Error("already exists")
 
 		return nil, status.Errorf(
 			codes.AlreadyExists,
@@ -218,7 +219,7 @@ func (g *GRPCServer) AddNewSubject(
 	}); err != nil {
 		return nil, err
 	}
-	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: EnrollQueue}).Info("enroll")
+	log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Subject: s, logger.Queue: EnrollQueue}).Info("enroll")
 
 	return &londopb.AddNewSubjectResponse{
 		Subject: s + " enrolled.",
@@ -235,7 +236,7 @@ func (g *GRPCServer) GetSubject(
 		return nil, err
 	}
 
-	log.WithFields(logrus.Fields{logIP: sr.ip, logSubject: s, logQueue: sr.addr}).Info("get")
+	log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Subject: s, logger.Queue: sr.addr}).Info("get")
 
 	if err := g.Londo.Publish(
 		DbReplyExchange, DbReplyQueue, sr.addr, DbGetSubjectCmd, GetSubjectEvent{Subject: s}); err != nil {
@@ -246,7 +247,7 @@ func (g *GRPCServer) GetSubject(
 
 	if rs.Subject == "" {
 
-		log.WithFields(logrus.Fields{logIP: sr.ip, logCode: codes.NotFound}).Error("not found")
+		log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Code: codes.NotFound}).Error("not found")
 
 		return nil, status.Errorf(
 			codes.NotFound,
@@ -278,7 +279,7 @@ func (g *GRPCServer) GetSubjectForTarget(
 	var targets []string
 	targets = append(targets, sr.ip)
 
-	log.WithFields(logrus.Fields{logIP: sr.ip, logQueue: sr.addr}).Info("get all")
+	log.WithFields(logrus.Fields{logger.IP: sr.ip, logger.Queue: sr.addr}).Info("get all")
 
 	if err := g.Londo.Publish(
 		DbReplyExchange,

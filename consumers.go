@@ -2,6 +2,7 @@ package londo
 
 import (
 	"encoding/json"
+	"github.com/alexyermolaev/londo/logger"
 	"math/big"
 	"net"
 	"net/http"
@@ -17,39 +18,39 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			err = d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
 		key, err := GeneratePrivateKey(cfg.CertParams.BitSize)
 		if err != nil {
 			err = d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
 		s.PrivateKey, err = EncodePKey(key)
 		if err != nil {
 			err = d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
 		csr, err := GenerateCSR(key, s.Subject, cfg)
 		if err != nil {
 			err = d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
 		s.CSR, err = EncodeCSR(csr)
 		if err != nil {
 			err = d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logSubject: s.Subject}).Info("enrolling")
+		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info("enrolling")
 
 		// A workaround for now; we don't need to process as fast as messages are being received.
 		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
@@ -58,7 +59,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		res, err := l.RestClient.Enroll(&s)
 		if err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 			return false
 		}
 
@@ -66,7 +67,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 			return false
 		}
 
@@ -78,7 +79,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		err = json.Unmarshal(res.Body(), &j)
 		if err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
@@ -86,17 +87,17 @@ func (l *Londo) ConsumeEnroll() *Londo {
 			CollectExchange, CollectQueue, "", "", CollectEvent{CertID: j.SslId}); err != nil {
 
 			log.WithFields(logrus.Fields{
-				logExchange: DbReplyExchange,
-				logQueue:    DbReplyQueue,
-				logCertID:   s.CertID}).Error(err)
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.CertID:   s.CertID}).Error(err)
 
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: CollectExchange,
-			logQueue:    CollectQueue,
-			logCertID:   j.SslId}).Info("published")
+			logger.Exchange: CollectExchange,
+			logger.Queue:    CollectQueue,
+			logger.CertID:   j.SslId}).Info("published")
 
 		s.CertID = j.SslId
 		s.OrderID = j.RenewID
@@ -113,19 +114,19 @@ func (l *Londo) ConsumeEnroll() *Londo {
 		}); err != nil {
 
 			log.WithFields(logrus.Fields{
-				logExchange: DbReplyExchange,
-				logQueue:    DbReplyQueue,
-				logSubject:  s.Subject,
-				logCertID:   s.CertID}).Error(err)
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.Subject:  s.Subject,
+				logger.CertID:   s.CertID}).Error(err)
 
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logSubject:  s.Subject,
-			logCertID:   s.CertID}).Info("published")
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Subject:  s.Subject,
+			logger.CertID:   s.CertID}).Info("published")
 
 		d.Ack(false)
 		return false
@@ -145,11 +146,11 @@ func (l *Londo) ConsumeRenew() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logReason: err}).Error("rejected")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("rejected")
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logSubject: s.Subject}).Info("delivered")
+		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info("delivered")
 
 		time.Sleep(1 * time.Minute)
 
@@ -157,13 +158,13 @@ func (l *Londo) ConsumeRenew() *Londo {
 		// TODO: Response result processing needs to be elsewhere
 		if err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logReason: err}).Error("requeue")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("requeue")
 			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logReason: err}).Error("requeue")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("requeue")
 			return false
 		}
 
@@ -178,22 +179,22 @@ func (l *Londo) ConsumeRenew() *Londo {
 		); err != nil {
 
 			log.WithFields(logrus.Fields{
-				logExchange: DbReplyExchange,
-				logQueue:    DbReplyQueue,
-				logCmd:      DbDeleteSubjCmd,
-				logReason:   err,
-				logSubject:  s.Subject,
-				logCertID:   s.CertID}).Error("msg lost")
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.Cmd:      DbDeleteSubjCmd,
+				logger.Reason:   err,
+				logger.Subject:  s.Subject,
+				logger.CertID:   s.CertID}).Error("msg lost")
 
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logCmd:      DbDeleteSubjCmd,
-			logSubject:  s.Subject,
-			logCertID:   s.CertID}).Info("published")
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Cmd:      DbDeleteSubjCmd,
+			logger.Subject:  s.Subject,
+			logger.CertID:   s.CertID}).Info("published")
 
 		if err := l.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 			Subject:  s.Subject,
@@ -203,18 +204,18 @@ func (l *Londo) ConsumeRenew() *Londo {
 		}); err != nil {
 
 			log.WithFields(logrus.Fields{
-				logExchange: EnrollExchange,
-				logQueue:    EnrollQueue,
-				logReason:   err,
-				logSubject:  s.Subject}).Error("msg lost")
+				logger.Exchange: EnrollExchange,
+				logger.Queue:    EnrollQueue,
+				logger.Reason:   err,
+				logger.Subject:  s.Subject}).Error("msg lost")
 
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: EnrollExchange,
-			logQueue:    EnrollQueue,
-			logSubject:  s.Subject}).Info("published")
+			logger.Exchange: EnrollExchange,
+			logger.Queue:    EnrollQueue,
+			logger.Subject:  s.Subject}).Info("published")
 
 		return false
 	})
@@ -228,24 +229,24 @@ func (l *Londo) ConsumeCollect() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logAction: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logCertID: s.CertID}).Info("collecting")
+		log.WithFields(logrus.Fields{logger.CertID: s.CertID}).Info("collecting")
 
 		time.Sleep(1 * time.Minute)
 
 		res, err := l.RestClient.Collect(s.CertID)
 		if err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 			return false
 		}
 
@@ -256,14 +257,14 @@ func (l *Londo) ConsumeCollect() *Londo {
 			Certificate: s.Certificate,
 		}); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logAction: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logCertID:   s.CertID}).Info("published")
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.CertID:   s.CertID}).Info("published")
 
 		d.Ack(false)
 		return false
@@ -286,12 +287,12 @@ func (l *Londo) ConsumeGRPCReplies(
 		}
 
 		if s.Subject != "" {
-			log.WithFields(logrus.Fields{logQueue: queue, logSubject: s.Subject}).Info("consume")
+			log.WithFields(logrus.Fields{logger.Queue: queue, logger.Subject: s.Subject}).Info("consume")
 		}
 		ch <- s
 
 		if d.Type == CloseChannelCmd {
-			log.WithFields(logrus.Fields{logQueue: queue, logCmd: CloseChannelCmd}).Debug("received")
+			log.WithFields(logrus.Fields{logger.Queue: queue, logger.Cmd: CloseChannelCmd}).Debug("received")
 			if done != nil {
 				done <- struct{}{}
 			}
@@ -311,11 +312,11 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if err := json.Unmarshal(d.Body, &e); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logReason: err}).Error("rejected")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("rejected")
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("received")
+		log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info("received")
 
 		now := time.Now().UTC()
 		t := now.Sub(e.Unresolvable).Round(time.Hour).Hours()
@@ -328,8 +329,8 @@ func (l *Londo) ConsumeCheck() *Londo {
 		if err != nil && t > 168 && !e.Unresolvable.IsZero() {
 			// TODO: delete/revoke
 			log.WithFields(logrus.Fields{
-				logSubject: e.Subject,
-				logHours:   int(t)}).Info("delete")
+				logger.Subject: e.Subject,
+				logger.Hours:   int(t)}).Info("delete")
 
 			d.Ack(false)
 			return false
@@ -346,7 +347,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 		if len(ips) == 0 && e.Unresolvable.IsZero() {
 			e.Unresolvable = now
 
-			log.WithFields(logrus.Fields{logSubject: e.Subject}).Info("unreachable")
+			log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info("unreachable")
 		}
 
 		// we have an array of IPs and unresolvable time is zero
@@ -366,21 +367,21 @@ func (l *Londo) ConsumeCheck() *Londo {
 					match++
 
 					log.WithFields(logrus.Fields{
-						logSubject: e.Subject,
-						logTarget:  ip.String()}).Info("added")
+						logger.Subject: e.Subject,
+						logger.Target:  ip.String()}).Info("added")
 
 				} else {
 					e.Outdated = append(e.Outdated, ip.String())
 
 					if Debug {
 						log.WithFields(logrus.Fields{
-							logSubject:  e.Subject,
-							logSerial:   curSerial.String(),
-							logDbSerial: serial.String()}).Debug("added")
+							logger.Subject:  e.Subject,
+							logger.Serial:   curSerial.String(),
+							logger.DbSerial: serial.String()}).Debug("added")
 					} else {
 						log.WithFields(logrus.Fields{
-							logSubject:  e.Subject,
-							logOutdated: ip.String()}).Info("added")
+							logger.Subject:  e.Subject,
+							logger.Outdated: ip.String()}).Info("added")
 					}
 				}
 			}
@@ -394,20 +395,20 @@ func (l *Londo) ConsumeCheck() *Londo {
 			d.Reject(false)
 
 			log.WithFields(logrus.Fields{
-				logSubject:  e.Subject,
-				logExchange: DbReplyExchange,
-				logQueue:    DbReplyQueue,
-				logReason:   err,
-				logCmd:      DbUpdateCertStatusCmd}).Error("rejected")
+				logger.Subject:  e.Subject,
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.Reason:   err,
+				logger.Cmd:      DbUpdateCertStatusCmd}).Error("rejected")
 
 			return false
 		}
 
 		log.WithFields(logrus.Fields{
-			logSubject:  e.Subject,
-			logExchange: DbReplyExchange,
-			logQueue:    DbReplyQueue,
-			logCmd:      DbUpdateCertStatusCmd}).Info("published")
+			logger.Subject:  e.Subject,
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Cmd:      DbUpdateCertStatusCmd}).Info("published")
 
 		d.Ack(false)
 		return false
