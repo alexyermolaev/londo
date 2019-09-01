@@ -20,3 +20,4 @@
 # This may contain secrets
 config/config.yaml
 config/token
+config/secret

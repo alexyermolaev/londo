@@ -1,9 +1,5 @@
 package logger
 
-import (
-	"github.com/sirupsen/logrus"
-)
-
 const (
 	Subject  = "subject"
 	IP       = "ip"
@@ -44,9 +40,3 @@ const (
 	Enroll    = "enroll"
 	Ok        = "ok"
 )
-
-func Fail(err error) {
-	if err != nil {
-		logrus.WithFields(logrus.Fields{Reason: err}).Fatal("crash")
-	}
-}

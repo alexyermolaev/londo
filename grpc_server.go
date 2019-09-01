@@ -20,6 +20,8 @@ var (
 	exists     = "already exists"
 	noToken    = "no token"
 	authFailed = "authentication failed"
+
+	SFile string
 )
 
 type GRPCServer struct {
@@ -60,7 +62,6 @@ func (g *GRPCServer) RenewSubjects(
 	}
 
 	if s != "" {
-
 		fields := logrus.Fields{
 			logger.Exchange: DbReplyExchange,
 			logger.Queue:    DbReplyQueue,

@@ -6,17 +6,21 @@ import (
 	"github.com/gbrlsnchs/jwt/v3"
 )
 
+var (
+	Secret *jwt.HMACSHA
+)
+
 type Payload struct {
 	jwt.Payload
 }
 
-var (
-	hs = jwt.NewHS512([]byte("secret"))
-)
+func EncryptSecret(s []byte) {
+	Secret = jwt.NewHS512(s)
+}
 
 func IssueJWT(sub string) ([]byte, error) {
 	now := time.Now()
-	exp := time.Time(now.Add(12 * time.Hour))
+	exp := now.Add(12 * time.Hour)
 
 	pl := Payload{
 		Payload: jwt.Payload{
@@ -27,7 +31,7 @@ func IssueJWT(sub string) ([]byte, error) {
 		},
 	}
 
-	return jwt.Sign(pl, hs)
+	return jwt.Sign(pl, Secret)
 }
 
 func VerifyJWT(token []byte) (string, error) {
@@ -41,7 +45,7 @@ func VerifyJWT(token []byte) (string, error) {
 		valPayload = jwt.ValidatePayload(&pl.Payload, expValid)
 	)
 
-	_, err := jwt.Verify(token, hs, &pl, valPayload)
+	_, err := jwt.Verify(token, Secret, &pl, valPayload)
 	if err != nil {
 		return pl.Subject, err
 	}

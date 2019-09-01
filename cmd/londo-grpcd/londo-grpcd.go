@@ -1,12 +1,13 @@
 package main
 
 import (
+	"os"
+	"sort"
+
 	"github.com/alexyermolaev/londo"
 	londocli "github.com/alexyermolaev/londo/cli"
 	"github.com/streadway/amqp"
 	"github.com/urfave/cli"
-	"os"
-	"sort"
 )
 
 const (
@@ -39,6 +40,13 @@ func init() {
 			Name:   "insecure, i",
 			Usage:  "disables port encryption (should not be used in production)",
 			EnvVar: "LONDO_GRPC_INSECURE",
+		},
+		cli.StringFlag{
+			Name:        "secret, s",
+			Usage:       "path to `SECRET` file",
+			EnvVar:      "LONDO_SECRET",
+			Value:       "config/secret",
+			Destination: &londo.SFile,
 		},
 	}
 

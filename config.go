@@ -67,11 +67,9 @@ type Config struct {
 	JWT        `yaml:"jwt"`
 }
 
-func ReadConfig() (*Config, error) {
-	// path for now
-	p := "config/config.yaml"
+func ReadConfig(file string) (*Config, error) {
 
-	f, err := os.Open(p)
+	f, err := os.Open(file)
 	defer f.Close()
 	if err != nil {
 		return nil, err

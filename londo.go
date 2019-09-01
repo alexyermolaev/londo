@@ -1,7 +1,10 @@
 package londo
 
 import (
+	"errors"
 	"fmt"
+	"github.com/alexyermolaev/londo/jwt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -59,6 +62,7 @@ var (
 	Debug       bool
 	ScanHours   int
 	RevokeHours int
+	cfgFile     string
 
 	cfg *Config
 	err error
@@ -73,9 +77,11 @@ var (
 			Destination: &Debug,
 		},
 		cli.StringFlag{
-			Name:   "config, c",
-			Usage:  "load configuration from `FILE`",
-			EnvVar: "LONDO_CONFIG",
+			Name:        "config, c",
+			Usage:       "load configuration from `FILE`",
+			EnvVar:      "LONDO_CONFIG",
+			Destination: &cfgFile,
+			Value:       "config/config.yml",
 		},
 	}
 )
@@ -86,7 +92,6 @@ func init() {
 		FullTimestamp:    true,
 		DisableUppercase: true,
 	})
-
 }
 
 type Londo struct {
@@ -98,33 +103,31 @@ type Londo struct {
 }
 
 func (l *Londo) AMQPConnection() *Londo {
-
 	l.AMQP, err = NewMQConnection(cfg, l.Db)
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Service: "amqp", logger.IP: cfg.AMQP.Hostname, logger.Port: cfg.AMQP.Port}).Info("connected")
-
 	return l
 }
 
 func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Table) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Exchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Queue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(
 		queue, false, false, false, false, args)
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Queue: q.Name}).Info("binding")
 	err = ch.QueueBind(queue, queue, exchange, false, nil)
-	logger.Fail(err)
+	Fail(err)
 
 	return l
 }
@@ -133,12 +136,12 @@ func (l *Londo) Declare(exchange string, queue string, kind string, args amqp.Ta
 func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Exchange: exchange}).Info("declaring")
 	err = ch.ExchangeDeclare(
 		exchange, kind, true, false, false, false, nil)
-	logger.Fail(err)
+	Fail(err)
 
 	return l
 }
@@ -147,7 +150,7 @@ func (l *Londo) DeclareExchange(exchange string, kind string) *Londo {
 func (l *Londo) DeclareBindQueue(exchange string, queue string) error {
 	ch, err := l.AMQP.connection.Channel()
 	defer ch.Close()
-	logger.Fail(err)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Queue: queue}).Info("declaring")
 	q, err := ch.QueueDeclare(queue, false, true, false, false, nil)
@@ -166,7 +169,7 @@ func (l *Londo) DbService() *Londo {
 
 	log.WithFields(logrus.Fields{logger.IP: cfg.DB.Hostname, logger.Port: cfg.DB.Port}).Info("db connection")
 	l.Db, err = NewDBConnection(cfg)
-	logger.Fail(err)
+	Fail(err)
 
 	return l
 }
@@ -185,11 +188,8 @@ func Initialize(name string) *Londo {
 	}
 
 	log.Info("reading config")
-	cfg, err = ReadConfig()
-	if err != nil {
-		log.WithFields(logrus.Fields{logger.Reason: err}).Error("cannot read config file")
-		os.Exit(1)
-	}
+	cfg, err = ReadConfig(cfgFile)
+	Fail(err)
 
 	log.WithFields(logrus.Fields{logger.Name: l.Name}).Info("initializing")
 
@@ -198,8 +198,10 @@ func Initialize(name string) *Londo {
 
 func (l *Londo) GRPCServer() *Londo {
 
+	readSecret()
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
-	logger.Fail(err)
+	Fail(err)
 
 	opts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(
@@ -220,11 +222,25 @@ func (l *Londo) GRPCServer() *Londo {
 	go func() {
 		log.WithFields(logrus.Fields{logger.Port: cfg.GRPC.Port, logger.IP: "0.0.0.0"}).Info("ready")
 		if err := srv.Serve(lis); err != nil {
-			logger.Fail(err)
+			Fail(err)
 		}
 	}()
 
 	return l
+}
+
+func readSecret() {
+	fi, err := os.Lstat(SFile)
+	Fail(err)
+
+	if fi.Mode().Perm() != 256 {
+		Fail(errors.New("perm " + SFile + ": should be 0400"))
+	}
+
+	s, err := ioutil.ReadFile(SFile)
+	Fail(err)
+
+	jwt.EncryptSecret(s)
 }
 
 func (l *Londo) Run() error {
@@ -254,4 +270,10 @@ func (l *Londo) shutdown(code int) {
 	}
 
 	os.Exit(code)
+}
+
+func Fail(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
