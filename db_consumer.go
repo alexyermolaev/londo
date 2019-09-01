@@ -99,8 +99,8 @@ func (l *Londo) dbGetAllSubjects(d amqp.Delivery) bool {
 func (l *Londo) dbUpdateSubject(d amqp.Delivery) bool {
 	certId, err := l.updateSubject(&d)
 	if err != nil {
-		d.Reject(true)
-		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Requeue)
+		d.Reject(false)
+		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
 		return false
 	}
 
