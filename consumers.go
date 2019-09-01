@@ -240,7 +240,7 @@ func (l *Londo) ConsumeRevoke() *Londo {
 
 		time.Sleep(1 * time.Minute)
 
-		res, err := l.RestClient.Revoke(s.CertID, "renew")
+		res, err := l.RestClient.Revoke(e.CertID, "automated revocation")
 		if err != nil {
 			d.Reject(true)
 			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Requeue)
