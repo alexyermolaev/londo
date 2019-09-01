@@ -328,10 +328,36 @@ func (l *Londo) ConsumeCheck() *Londo {
 		// but unresolvable time itself isn't a zero, revoke delete
 		// TODO: unhardcode this
 		if err != nil && t > 168 && !e.Unresolvable.IsZero() {
-			// TODO: delete/revoke
+			revoke := RevokeEvent{
+				ID:     e.ID,
+				CertID: e.CertID,
+			}
+
+			if err := l.Publish(
+				DbReplyExchange,
+				DbReplyQueue, "",
+				DbDeleteSubjCmd,
+				revoke,
+			); err != nil {
+				d.Reject(false)
+
+				log.WithFields(logrus.Fields{
+					logger.Exchange: DbReplyExchange,
+					logger.Queue:    DbReplyQueue,
+					logger.Reason:   err,
+				}).Error(logger.Rejected)
+
+				return false
+			}
+
+			// TODO: revoke
+
 			log.WithFields(logrus.Fields{
-				logger.Subject: e.Subject,
-				logger.Hours:   int(t)}).Info("delete")
+				logger.Exchange: DbReplyExchange,
+				logger.Queue:    DbReplyQueue,
+				logger.Cmd:      DbDeleteSubjCmd,
+				logger.Subject:  e.Subject,
+				logger.Hours:    int(t)}).Info(logger.Published)
 
 			d.Ack(false)
 			return false
@@ -349,7 +375,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 		if len(ips) == 0 && e.Unresolvable.IsZero() {
 			e.Unresolvable = now
 
-			log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info("unreachable")
+			log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Warn("unreachable")
 		}
 
 		// we have an array of IPs and unresolvable time is zero

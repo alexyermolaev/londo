@@ -47,6 +47,7 @@ func (EnrollEvent) GetMessage() amqp.Publishing {
 	return amqp.Publishing{ContentType: ContentType}
 }
 
+// FIXME: not being used?
 type DeleteSubjEvent struct {
 	CertID int
 }
@@ -119,7 +120,9 @@ func (ExpiringSubjectEvent) GetMessage() amqp.Publishing {
 }
 
 type CheckCertEvent struct {
+	ID       string
 	Subject  string
+	CertID   int
 	Serial   string
 	Port     int32
 	Match    bool

@@ -27,6 +27,14 @@ const (
 	Serial   = "remote_serial"
 	DbSerial = "db_serial"
 	Service  = "service"
+
+	Requeue   = "requeue"
+	Rejected  = "rejected"
+	Ack       = "acknowledged"
+	Published = "published"
+	Received  = "received"
+	Success   = "success"
+	Skip      = "skipping"
 )
 
 func Fail(err error) {

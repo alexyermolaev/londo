@@ -63,7 +63,9 @@ func (l *Londo) dbGetAllSubjects(d amqp.Delivery) bool {
 	for _, s := range subjs {
 
 		if err := l.Publish(CheckExchange, CheckQueue, "", "", CheckCertEvent{
+			ID:           s.ID.Hex(),
 			Subject:      s.Subject,
+			CertID:       s.CertID,
 			Serial:       s.Serial,
 			Port:         s.Port,
 			Match:        s.Match,
@@ -122,11 +124,11 @@ func (l *Londo) dbDeleteSubject(d amqp.Delivery) bool {
 	certId, err := l.deleteSubject(&d)
 	if err != nil {
 		d.Reject(true)
-		log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
+		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Requeue)
 		return false
 	}
 
-	log.WithFields(logrus.Fields{logger.CertID: certId, logger.Cmd: DbDeleteSubjCmd}).Info("success")
+	log.WithFields(logrus.Fields{logger.CertID: certId, logger.Cmd: DbDeleteSubjCmd}).Info(logger.Success)
 	d.Ack(false)
 	return false
 }
