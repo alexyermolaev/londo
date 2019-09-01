@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	name    = "Londo Client"
+	name    = "Londo-client"
 	usage   = "A client that allows interraction with Londo Certificate Management"
 	version = "0.2.2"
 )
@@ -32,13 +32,13 @@ func init() {
 	app.Authors = []cli.Author{londocli.GetAuthors()}
 
 	app.Commands = []cli.Command{
-		cli.Command{
+		{
 			Name:    "get",
 			Aliases: []string{"g"},
-			Usage:   "retrieves all corelated certificates and private keys from the remote",
+			Usage:   "retrieves all correlated certificates and private keys from the remote",
 			Action:  londocli.CallCertService,
 		},
-		cli.Command{
+		{
 			Name:    "update",
 			Aliases: []string{"u"},
 			Usage:   "request an updated token from remote host",
@@ -50,7 +50,7 @@ func init() {
 			Name:        "token, t",
 			Usage:       "load token from `FILE`",
 			Destination: &token.File,
-			FilePath:    "config/token",
+			Value:       "config/token",
 			EnvVar:      "LONDO_TOKEN",
 		},
 		cli.StringFlag{

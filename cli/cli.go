@@ -14,6 +14,7 @@ import (
 	"github.com/alexyermolaev/londo/londopb"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
 )
@@ -38,8 +39,9 @@ var (
 )
 
 func init() {
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
+	log.SetFormatter(&prefixed.TextFormatter{
+		FullTimestamp:    true,
+		DisableUppercase: true,
 	})
 
 	token = &Token{}
