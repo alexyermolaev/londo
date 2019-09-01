@@ -371,11 +371,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 			}
 
 			if err := l.Publish(
-				DbReplyExchange,
-				DbReplyQueue, "",
-				DbDeleteSubjCmd,
-				revoke,
-			); err != nil {
+				DbReplyExchange, DbReplyQueue, "", DbDeleteSubjCmd, revoke); err != nil {
 				d.Reject(false)
 
 				log.WithFields(logrus.Fields{
@@ -386,15 +382,29 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 				return false
 			}
-
-			// TODO: revoke
-
 			log.WithFields(logrus.Fields{
 				logger.Exchange: DbReplyExchange,
 				logger.Queue:    DbReplyQueue,
 				logger.Cmd:      DbDeleteSubjCmd,
 				logger.Subject:  e.Subject,
 				logger.Hours:    int(t)}).Info(logger.Published)
+
+			if err := l.Publish(RevokeExchange, RevokeQueue, "", "", revoke); err != nil {
+				// It isn't that important if we can't publish to revoker somehow.
+				// So we'll just continue with the rest.
+				log.WithFields(logrus.Fields{
+					logger.Exchange: RevokeExchange,
+					logger.Queue:    RevokeQueue,
+					logger.Reason:   err,
+				}).Error(logger.Skip)
+			} else {
+				log.WithFields(logrus.Fields{
+					logger.Exchange: RevokeExchange,
+					logger.Queue:    RevokeQueue,
+					logger.Subject:  e.Subject,
+					logger.CertID:   e.CertID,
+					logger.Hours:    int(t)}).Info(logger.Published)
+			}
 
 			d.Ack(false)
 			return false
