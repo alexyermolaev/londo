@@ -22,9 +22,6 @@ const (
 	EnrollExchange = "enroll-rpc"
 	EnrollQueue    = "enroll"
 
-	RenewExchange = "renew-rpc"
-	RenewQueue    = "renew"
-
 	RevokeExchange = "revoke-rpc"
 	RevokeQueue    = "revoke"
 

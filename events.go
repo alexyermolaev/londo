@@ -1,7 +1,6 @@
 package londo
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -9,22 +8,6 @@ import (
 
 type Event interface {
 	GetMessage() amqp.Publishing
-}
-
-type RenewEvent struct {
-	ID       string
-	Subject  string
-	Port     int32
-	CertID   int
-	AltNames []string
-	Targets  []string
-}
-
-func (e RenewEvent) GetMessage() amqp.Publishing {
-	return amqp.Publishing{
-		CorrelationId: e.ID,
-		Expiration:    strconv.Itoa(int(time.Now().Add(1 * time.Minute).Unix())),
-	}
 }
 
 type RevokeEvent struct {
