@@ -68,9 +68,5 @@ func ReadSecret(sfile string) {
 		log.Fatal(err)
 	}
 
-	encryptSecret(s)
-}
-
-func encryptSecret(s []byte) {
 	Secret = jwt.NewHS512(s)
 }
