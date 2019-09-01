@@ -36,7 +36,13 @@ func (l *Londo) Publish(exchange string, queue string, reply string, cmd string,
 func (l *Londo) PublishPeriodicly(hours int) *Londo {
 	c := gron.New()
 
-	c.AddFunc(gron.Every(time.Duration(hours)*time.Minute), func() {
+	dur := time.Hour
+
+	if Debug {
+		dur = time.Minute
+	}
+
+	c.AddFunc(gron.Every(time.Duration(hours)*dur), func() {
 		if err := l.Publish(
 			DbReplyExchange,
 			DbReplyQueue,
@@ -58,11 +64,19 @@ func (l *Londo) PublishPeriodicly(hours int) *Londo {
 		}).Info("published")
 	})
 
-	log.WithFields(logrus.Fields{
-		logger.Hours:    hours,
-		logger.Service:  "publishing",
-		logger.Queue:    CheckQueue,
-		logger.Exchange: CheckExchange}).Info("scheduled")
+	if Debug {
+		log.WithFields(logrus.Fields{
+			logger.Minutes:  hours,
+			logger.Service:  "publishing",
+			logger.Queue:    CheckQueue,
+			logger.Exchange: CheckExchange}).Warn("scheduled")
+	} else {
+		log.WithFields(logrus.Fields{
+			logger.Hours:    hours,
+			logger.Service:  "publishing",
+			logger.Queue:    CheckQueue,
+			logger.Exchange: CheckExchange}).Info("scheduled")
+	}
 
 	c.Start()
 

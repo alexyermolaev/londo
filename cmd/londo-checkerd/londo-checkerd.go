@@ -25,9 +25,16 @@ func init() {
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:        "hours",
-			Usage:       "specify number of `HOURS` between checks",
+			Usage:       "specify number of `HOURS` between checks (minutes if debug is on)",
 			Value:       12,
 			Destination: &londo.ScanHours,
+		},
+		cli.IntFlag{
+			Name:        "old, o",
+			Usage:       "number of `HOURS` before subject is considered being too old and gets revoked",
+			EnvVar:      "LONDO_DELETE_HOURS",
+			Value:       168,
+			Destination: &londo.RevokeHours,
 		},
 	}
 
@@ -67,7 +74,7 @@ func defaultCommand(c *cli.Context) error {
 			londo.CheckExchange,
 			londo.CheckQueue,
 			amqp.ExchangeDirect, nil).
-		PublishPeriodicly(1).
+		PublishPeriodicly(londo.ScanHours).
 		ConsumeCheck().
 		Run()
 }

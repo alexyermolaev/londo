@@ -326,8 +326,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		// if DNS cannot resolve the host and unresolvable time is larger than set number of hours
 		// but unresolvable time itself isn't a zero, revoke delete
-		// TODO: unhardcode this
-		if err != nil && t > 168 && !e.Unresolvable.IsZero() {
+		if err != nil && t > float64(RevokeHours) && !e.Unresolvable.IsZero() {
 			revoke := RevokeEvent{
 				ID:     e.ID,
 				CertID: e.CertID,

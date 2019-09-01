@@ -24,6 +24,7 @@ const (
 	Action   = "action"
 	Count    = "count"
 	Hours    = "hours"
+	Minutes  = "minutes"
 	Serial   = "remote_serial"
 	DbSerial = "db_serial"
 	Service  = "service"

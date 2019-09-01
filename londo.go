@@ -56,8 +56,9 @@ const (
 )
 
 var (
-	Debug     bool
-	ScanHours int
+	Debug       bool
+	ScanHours   int
+	RevokeHours int
 
 	cfg *Config
 	err error
