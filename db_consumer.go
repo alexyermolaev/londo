@@ -208,6 +208,7 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery, outdated bool) bool {
 		log.WithFields(logrus.Fields{
 			logger.Queue: d.ReplyTo, logger.Cmd: DbGetSubjectByTargetCmd}).Error("none")
 
+		d.Ack(false)
 		return false
 	}
 
