@@ -136,96 +136,6 @@ func (l *Londo) ConsumeEnroll() *Londo {
 	return l
 }
 
-/*
-Since automated renew process involve manual approval by a human, it is much easier to revoke
-old certificate and issue new one. While this complicates logic, currently, this is the best
-approach.
-*/
-// TODO: need a separate revoke consumer
-func (l *Londo) ConsumeRenew() *Londo {
-	go l.AMQP.Consume(RenewQueue, nil, func(d amqp.Delivery) bool {
-		s, err := UnmarshalSubjMsg(&d)
-		if err != nil {
-			d.Reject(false)
-			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
-			return false
-		}
-
-		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info(logger.Received)
-
-		time.Sleep(1 * time.Minute)
-
-		if err := l.Publish(RevokeExchange, RevokeQueue, "", "", RevokeEvent{
-			ID:     s.ID.Hex(),
-			CertID: s.CertID,
-		}); err != nil {
-			d.Reject(false)
-
-			log.WithFields(logrus.Fields{
-				logger.Exchange: RevokeExchange,
-				logger.Queue:    RevokeQueue,
-				logger.CertID:   s.CertID,
-				logger.Reason:   err,
-			}).Error(logger.Rejected)
-
-			return false
-		}
-
-		d.Ack(false)
-
-		if err := l.Publish(
-			DbReplyExchange,
-			DbReplyQueue,
-			"",
-			DbDeleteSubjCmd,
-			RevokeEvent{CertID: s.CertID, ID: d.CorrelationId},
-		); err != nil {
-
-			log.WithFields(logrus.Fields{
-				logger.Exchange: DbReplyExchange,
-				logger.Queue:    DbReplyQueue,
-				logger.Cmd:      DbDeleteSubjCmd,
-				logger.Reason:   err,
-				logger.Subject:  s.Subject,
-				logger.CertID:   s.CertID}).Error("msg lost")
-
-			return false
-		}
-
-		log.WithFields(logrus.Fields{
-			logger.Exchange: DbReplyExchange,
-			logger.Queue:    DbReplyQueue,
-			logger.Cmd:      DbDeleteSubjCmd,
-			logger.Subject:  s.Subject,
-			logger.CertID:   s.CertID}).Info(logger.Published)
-
-		if err := l.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
-			Subject:  s.Subject,
-			Port:     s.Port,
-			AltNames: s.AltNames,
-			Targets:  s.Targets,
-		}); err != nil {
-
-			log.WithFields(logrus.Fields{
-				logger.Exchange: EnrollExchange,
-				logger.Queue:    EnrollQueue,
-				logger.Reason:   err,
-				logger.Subject:  s.Subject}).Error("msg lost")
-
-			return false
-		}
-
-		log.WithFields(logrus.Fields{
-			logger.Exchange: EnrollExchange,
-			logger.Queue:    EnrollQueue,
-			logger.Subject:  s.Subject}).Info(logger.Published)
-
-		return false
-	})
-
-	return l
-}
-
 func (l *Londo) ConsumeRevoke() *Londo {
 	go l.AMQP.Consume(RevokeQueue, nil, func(d amqp.Delivery) bool {
 
@@ -376,6 +286,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 				return false
 			}
+
 			log.WithFields(logrus.Fields{
 				logger.Exchange: DbReplyExchange,
 				logger.Queue:    DbReplyQueue,
