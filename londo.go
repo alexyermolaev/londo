@@ -171,7 +171,7 @@ func (l *Londo) DbService() *Londo {
 	return l
 }
 
-func S(name string) *Londo {
+func Initialize(name string) *Londo {
 	l := &Londo{
 		Name: name,
 	}

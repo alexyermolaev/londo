@@ -36,7 +36,7 @@ func defaultCommand(c *cli.Context) error {
 		londo.Debug = true
 	}
 
-	return londo.S(name).
+	return londo.Initialize(name).
 		AMQPConnection().
 		RestAPIClient().
 		Declare(
