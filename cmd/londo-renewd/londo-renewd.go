@@ -37,7 +37,7 @@ func defaultCommand(c *cli.Context) error {
 		londo.Debug = true
 	}
 
-	return londo.S("renew").
+	return londo.S(name).
 		AMQPConnection().
 		RestAPIClient().
 		Declare(

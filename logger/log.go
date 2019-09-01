@@ -36,6 +36,8 @@ const (
 	Received  = "received"
 	Success   = "success"
 	Skip      = "skipping"
+	Get       = "get"
+	Consumed  = "consumed"
 )
 
 func Fail(err error) {
