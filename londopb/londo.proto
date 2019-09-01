@@ -19,7 +19,9 @@ message TargetRequest {
     repeated string target = 1;
 }
 
-message ForTargetRequest {}
+message ForTargetRequest {
+    bool update = 1;
+}
 
 message GetSubjectResponse {
     Subject subject = 1;
@@ -60,7 +62,7 @@ message GetExpiringSubjectsRequest {
     int32 days = 1;
 }
 
-message GetExpringSubjectsResponse {
+message GetExpiringSubjectsResponse {
     ExpiringSubject subject = 1;
 }
 
@@ -100,7 +102,7 @@ service CertService {
     rpc AddNewSubject (AddNewSubjectRequest) returns (AddNewSubjectResponse);
     rpc DeleteSubject (DeleteSubjectRequest) returns (DeleteSubjectResponse);
 
-    rpc GetExpiringSubject (GetExpiringSubjectsRequest) returns (stream GetExpringSubjectsResponse);
+    rpc GetExpiringSubject (GetExpiringSubjectsRequest) returns (stream GetExpiringSubjectsResponse);
     rpc RenewSubjects (RenewSubjectRequest) returns (stream RenewResponse);
 
     rpc GetToken (GetTokenRequest) returns (GetTokenResponse);

@@ -31,11 +31,12 @@ var (
 	argErr = cli.NewExitError("must specify an argument", 1)
 	err    error
 
-	token    *Token
-	server   *Server
-	certPath *CertPath
-	ExpDays  int
-	SFile    string
+	token       *Token
+	server      *Server
+	certPath    *CertPath
+	ExpDays     int
+	SFile       string
+	UpdateCerts bool
 )
 
 func init() {
@@ -134,7 +135,7 @@ func GetForTarget(c *cli.Context) {
 				fmt.Println(msg.GetSubject())
 			}
 		} else {
-			req := &londopb.ForTargetRequest{}
+			req := &londopb.ForTargetRequest{Update: UpdateCerts}
 
 			stream, err := client.GetSubjectForTarget(context.Background(), req)
 			if err != nil {

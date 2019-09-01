@@ -181,7 +181,7 @@ func (g *GRPCServer) GetExpiringSubject(
 	log.WithFields(fields).Info(logger.Published)
 
 	return g.getManyReplies(sr, func(rs Subject) error {
-		return stream.Send(&londopb.GetExpringSubjectsResponse{
+		return stream.Send(&londopb.GetExpiringSubjectsResponse{
 			Subject: &londopb.ExpiringSubject{
 				Subject: rs.Subject,
 				ExpDate: rs.NotAfter.Unix(),
@@ -314,19 +314,24 @@ func (g *GRPCServer) GetSubjectForTarget(
 	var targets []string
 	targets = append(targets, sr.ip)
 
+	cmd := DbGetSubjectByTargetCmd
+	if req.Update {
+		cmd = DbGetUpdatedSubjectByTargetCmd
+	}
+
 	fields := logrus.Fields{
 		logger.Exchange: DbReplyExchange,
 		logger.Queue:    DbReplyQueue,
 		logger.Reply:    sr.addr,
 		logger.IP:       sr.ip,
-		logger.Cmd:      DbGetSubjectByTargetCmd,
+		logger.Cmd:      cmd,
 	}
 
 	if err := g.Londo.Publish(
 		DbReplyExchange,
 		DbReplyQueue,
 		sr.addr,
-		DbGetSubjectByTargetCmd,
+		cmd,
 		GetSubjectByTargetEvent{Target: targets},
 	); err != nil {
 		log.WithFields(fields).Error(err)
@@ -346,7 +351,6 @@ func (g *GRPCServer) GetSubjectForTarget(
 			},
 		})
 	})
-
 }
 
 func (g *GRPCServer) GetSubjectsByTarget(

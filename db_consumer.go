@@ -20,7 +20,10 @@ func (l *Londo) ConsumeDbRPC() *Londo {
 			return l.dbExpiringSubjects(d)
 
 		case DbGetSubjectByTargetCmd:
-			return l.dbSubjectByTarget(d)
+			return l.dbSubjectByTarget(d, false)
+
+		case DbGetUpdatedSubjectByTargetCmd:
+			return l.dbSubjectByTarget(d, true)
 
 		case DbGetSubjectCmd:
 			return l.dbGetSubjects(d)
@@ -164,8 +167,12 @@ func (l *Londo) dbGetSubjects(d amqp.Delivery) bool {
 	return false
 }
 
-func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
-	var e GetSubjectByTargetEvent
+func (l *Londo) dbSubjectByTarget(d amqp.Delivery, outdated bool) bool {
+	var (
+		e      GetSubjectByTargetEvent
+		filter = "targets"
+	)
+
 	if err := json.Unmarshal(d.Body, &e); err != nil {
 		d.Reject(false)
 		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
@@ -175,7 +182,11 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 	log.WithFields(logrus.Fields{
 		logger.Cmd: DbGetSubjectByTargetCmd, logger.Targets: e.Target}).Info(logger.Get)
 
-	subjs, err := l.Db.FineManySubjects(e.Target)
+	if outdated {
+		filter = "outdated"
+	}
+
+	subjs, err := l.Db.FindManySubjects(e.Target, filter)
 	if err != nil {
 		d.Reject(false)
 		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
@@ -188,7 +199,7 @@ func (l *Londo) dbSubjectByTarget(d amqp.Delivery) bool {
 		var s Subject
 
 		if err := l.Publish(
-			GRPCServerExchange, d.ReplyTo, d.ReplyTo, CloseChannelCmd, &s); err != nil {
+			GRPCServerExchange, d.ReplyTo, "", CloseChannelCmd, &s); err != nil {
 			d.Reject(false)
 			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
 			return false

@@ -148,12 +148,14 @@ func (m *MongoDB) FindSubject(s string) (Subject, error) {
 	return res, err
 }
 
-func (m *MongoDB) FineManySubjects(s []string) ([]Subject, error) {
-	col := m.getSubjCollection()
-	filter := bson.M{"targets": s}
-	var res []Subject
+func (m *MongoDB) FindManySubjects(s []string, filter string) ([]Subject, error) {
 
-	cur, err := col.Find(m.context, filter, nil)
+	var (
+		col = m.getSubjCollection()
+		res []Subject
+	)
+
+	cur, err := col.Find(m.context, bson.M{filter: s}, nil)
 	if err != nil {
 		return nil, err
 	}

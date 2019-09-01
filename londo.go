@@ -39,14 +39,15 @@ const (
 
 	// Commands
 	// Db
-	DbDeleteSubjCmd          = "subj.delete"
-	DbAddSubjCmd             = "subj.add"
-	DbUpdateSubjCmd          = "subj.update"
-	DbGetSubjectCmd          = "subj.get"
-	DbGetAllSubjectsCmd      = "subj.get.all"
-	DbGetSubjectByTargetCmd  = "subj.get.target"
-	DbGetExpiringSubjectsCmd = "subj.get.expiring"
-	DbUpdateCertStatusCmd    = "subj.update.status"
+	DbDeleteSubjCmd                = "subj.delete"
+	DbAddSubjCmd                   = "subj.add"
+	DbUpdateSubjCmd                = "subj.update"
+	DbGetSubjectCmd                = "subj.get"
+	DbGetAllSubjectsCmd            = "subj.get.all"
+	DbGetSubjectByTargetCmd        = "subj.get.target"
+	DbGetUpdatedSubjectByTargetCmd = "subj.get.update"
+	DbGetExpiringSubjectsCmd       = "subj.get.expiring"
+	DbUpdateCertStatusCmd          = "subj.update.status"
 
 	// Tell consumer to close channel
 	CloseChannelCmd = "stop"

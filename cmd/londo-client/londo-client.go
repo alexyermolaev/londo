@@ -37,6 +37,13 @@ func init() {
 			Aliases: []string{"g"},
 			Usage:   "retrieves all correlated certificates and private keys from the remote",
 			Action:  londocli.CallCertService,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:        "update, u",
+					Usage:       "get only certificates that do not match",
+					Destination: &londocli.UpdateCerts,
+				},
+			},
 		},
 		{
 			Name:    "update",
