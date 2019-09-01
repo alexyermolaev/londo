@@ -238,8 +238,6 @@ func (l *Londo) ConsumeRevoke() *Londo {
 
 		log.WithFields(logrus.Fields{logger.CertID: e.CertID}).Info(logger.Received)
 
-		time.Sleep(1 * time.Minute)
-
 		res, err := l.RestClient.Revoke(e.CertID, "automated revocation")
 		if err != nil {
 			d.Reject(true)
@@ -312,11 +310,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 	return l
 }
 
-func (l *Londo) ConsumeGRPCReplies(
-	queue string,
-	ch chan Subject,
-	done chan struct{},
-	wg *sync.WaitGroup) *Londo {
+func (l *Londo) ConsumeGRPCReplies(queue string, ch chan Subject, done chan struct{}, wg *sync.WaitGroup) *Londo {
 
 	go l.AMQP.Consume(queue, wg, func(d amqp.Delivery) bool {
 
