@@ -1,14 +1,12 @@
 package londo
 
 import (
-	"errors"
 	"fmt"
-	"github.com/alexyermolaev/londo/jwt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
 
+	"github.com/alexyermolaev/londo/jwt"
 	"github.com/alexyermolaev/londo/logger"
 	"github.com/alexyermolaev/londo/londopb"
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -198,7 +196,7 @@ func Initialize(name string) *Londo {
 
 func (l *Londo) GRPCServer() *Londo {
 
-	readSecret()
+	jwt.ReadSecret(SFile)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	Fail(err)
@@ -227,20 +225,6 @@ func (l *Londo) GRPCServer() *Londo {
 	}()
 
 	return l
-}
-
-func readSecret() {
-	fi, err := os.Lstat(SFile)
-	Fail(err)
-
-	if fi.Mode().Perm() != 256 {
-		Fail(errors.New("perm " + SFile + ": should be 0400"))
-	}
-
-	s, err := ioutil.ReadFile(SFile)
-	Fail(err)
-
-	jwt.EncryptSecret(s)
 }
 
 func (l *Londo) Run() error {

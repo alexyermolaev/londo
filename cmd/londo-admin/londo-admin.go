@@ -29,6 +29,15 @@ var (
 		Usage: "issue new token for a target (i.e. IP address) system. it has to match a " +
 			"certificate subject target",
 		Action: londocli.IssueToken,
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:        "secret, s",
+				Usage:       "path to `SECRET` file",
+				EnvVar:      "LONDO_SECRET",
+				Value:       "config/secret",
+				Destination: &londocli.SFile,
+			},
+		},
 	}
 
 	tgtCmd = cli.Command{

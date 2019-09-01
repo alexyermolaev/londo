@@ -34,6 +34,7 @@ var (
 	server   *Server
 	certPath *CertPath
 	ExpDays  int
+	SFile    string
 )
 
 func init() {
@@ -342,6 +343,8 @@ func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 }
 
 func IssueToken(c *cli.Context) error {
+	jwt.ReadSecret(SFile)
+
 	arg := c.Args().First()
 
 	if arg == "" {
@@ -354,7 +357,7 @@ func IssueToken(c *cli.Context) error {
 
 	b, err := jwt.IssueJWT(arg)
 	if err != nil {
-		return cli.NewExitError("cannot issue a token", 1)
+		return cli.NewExitError(err, 1)
 	}
 
 	token.String = string(b)
