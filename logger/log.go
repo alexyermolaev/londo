@@ -39,4 +39,5 @@ const (
 	Unknown   = "unknown"
 	Enroll    = "enroll"
 	Ok        = "ok"
+	Added     = "added"
 )

@@ -110,7 +110,7 @@ func GetForTarget(c *cli.Context) {
 	var targets []string
 	targets = append(targets, arg)
 
-	DoRequest(c, func(client londopb.CertServiceClient) error {
+	if err := DoRequest(c, func(client londopb.CertServiceClient) error {
 		// TODO: need refactor
 		if arg != "" {
 			req := &londopb.TargetRequest{
@@ -159,7 +159,9 @@ func GetForTarget(c *cli.Context) {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func AddSubject(c *cli.Context) error {

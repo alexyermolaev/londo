@@ -343,12 +343,14 @@ func (l *Londo) ConsumeCheck() *Londo {
 				if err != nil {
 
 					log.WithFields(logrus.Fields{
-						logger.Subject: e.Subject,
-						logger.IP:      i,
-						logger.Port:    port,
-						logger.Reason:  err,
-					}).Error("skipping")
+						logger.Subject:  e.Subject,
+						logger.IP:       i,
+						logger.Port:     port,
+						logger.Reason:   err,
+						logger.Outdated: e.Subject,
+					}).Error(logger.Added)
 
+					e.Outdated = append(e.Outdated, ip.String())
 					continue
 				}
 
@@ -358,7 +360,7 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 					log.WithFields(logrus.Fields{
 						logger.Subject: e.Subject,
-						logger.Target:  i}).Info("added")
+						logger.Target:  i}).Info(logger.Added)
 
 				} else {
 					e.Outdated = append(e.Outdated, ip.String())
@@ -368,11 +370,11 @@ func (l *Londo) ConsumeCheck() *Londo {
 							logger.Subject:  e.Subject,
 							logger.Outdated: i,
 							logger.Serial:   curSerial.String(),
-							logger.DbSerial: serial.String()}).Debug("added")
+							logger.DbSerial: serial.String()}).Debug(logger.Added)
 					} else {
 						log.WithFields(logrus.Fields{
 							logger.Subject:  e.Subject,
-							logger.Outdated: i}).Info("added")
+							logger.Outdated: i}).Info(logger.Added)
 					}
 				}
 			}
