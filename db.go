@@ -127,7 +127,7 @@ func (m *MongoDB) UpdateSubjCert(certId *int, cert *string, na *time.Time, sn *b
 			{"not_after", na},
 			{"serial", sn.String()},
 			{"updated_at", time.Now()},
-			{"no_match", true},
+			{"match", false},
 		}},
 	}
 

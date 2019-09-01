@@ -254,6 +254,7 @@ func (g *GRPCServer) GetSubject(
 			fmt.Sprintf("%s not found", s))
 	}
 
+	<-sr.doneChannel
 	sr.wg.Wait()
 
 	log.Infof("%s: resp %s", sr.ip, rs.Subject)
