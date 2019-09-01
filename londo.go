@@ -25,6 +25,9 @@ const (
 	RenewExchange = "renew-rpc"
 	RenewQueue    = "renew"
 
+	RevokeExchange = "revoke-rpc"
+	RevokeQueue    = "revoke"
+
 	CollectExchange = "collect-rpc"
 	CollectQueue    = "collect"
 

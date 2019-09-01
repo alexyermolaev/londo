@@ -147,25 +147,27 @@ func (l *Londo) ConsumeRenew() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logger.Reason: err}).Error("rejected")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info("delivered")
+		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info(logger.Received)
 
 		time.Sleep(1 * time.Minute)
 
-		res, err := l.RestClient.Revoke(s.CertID, "renew")
-		// TODO: Response result processing needs to be elsewhere
-		if err != nil {
-			d.Reject(true)
-			log.WithFields(logrus.Fields{logger.Reason: err}).Error("requeue")
-			return false
-		}
+		if err := l.Publish(RevokeExchange, RevokeQueue, "", "", RevokeEvent{
+			ID:     s.ID.Hex(),
+			CertID: s.CertID,
+		}); err != nil {
+			d.Reject(false)
 
-		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
-			d.Reject(true)
-			log.WithFields(logrus.Fields{logger.Reason: err}).Error("requeue")
+			log.WithFields(logrus.Fields{
+				logger.Exchange: RevokeExchange,
+				logger.Queue:    RevokeQueue,
+				logger.CertID:   s.CertID,
+				logger.Reason:   err,
+			}).Error(logger.Rejected)
+
 			return false
 		}
 
@@ -195,7 +197,7 @@ func (l *Londo) ConsumeRenew() *Londo {
 			logger.Queue:    DbReplyQueue,
 			logger.Cmd:      DbDeleteSubjCmd,
 			logger.Subject:  s.Subject,
-			logger.CertID:   s.CertID}).Info("published")
+			logger.CertID:   s.CertID}).Info(logger.Published)
 
 		if err := l.Publish(EnrollExchange, EnrollQueue, "", "", EnrollEvent{
 			Subject:  s.Subject,
@@ -216,8 +218,44 @@ func (l *Londo) ConsumeRenew() *Londo {
 		log.WithFields(logrus.Fields{
 			logger.Exchange: EnrollExchange,
 			logger.Queue:    EnrollQueue,
-			logger.Subject:  s.Subject}).Info("published")
+			logger.Subject:  s.Subject}).Info(logger.Published)
 
+		return false
+	})
+
+	return l
+}
+
+func (l *Londo) ConsumeRevoke() *Londo {
+	go l.AMQP.Consume(RevokeQueue, nil, func(d amqp.Delivery) bool {
+
+		var e RevokeEvent
+		if err := json.Unmarshal(d.Body, &e); err != nil {
+			d.Reject(false)
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error("rejected")
+			return false
+		}
+
+		log.WithFields(logrus.Fields{logger.CertID: e.CertID}).Info(logger.Received)
+
+		time.Sleep(1 * time.Minute)
+
+		res, err := l.RestClient.Revoke(s.CertID, "renew")
+		if err != nil {
+			d.Reject(true)
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Requeue)
+			return false
+		}
+
+		if err := l.RestClient.VerifyStatusCode(res, http.StatusNoContent); err != nil {
+			d.Reject(true)
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Requeue)
+			return false
+		}
+
+		log.WithFields(logrus.Fields{logger.CertID: e.CertID}).Info(logger.Revoked)
+
+		d.Ack(false)
 		return false
 	})
 
@@ -313,11 +351,11 @@ func (l *Londo) ConsumeCheck() *Londo {
 
 		if err := json.Unmarshal(d.Body, &e); err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logger.Reason: err}).Error("rejected")
+			log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info("received")
+		log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info(logger.Received)
 
 		now := time.Now().UTC()
 		t := now.Sub(e.Unresolvable).Round(time.Hour).Hours()

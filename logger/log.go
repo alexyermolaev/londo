@@ -38,6 +38,7 @@ const (
 	Skip      = "skipping"
 	Get       = "get"
 	Consumed  = "consumed"
+	Revoked   = "revoked"
 )
 
 func Fail(err error) {

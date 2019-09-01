@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"sort"
-	"time"
 
 	"github.com/alexyermolaev/londo"
 	londocli "github.com/alexyermolaev/londo/cli"
@@ -12,8 +11,8 @@ import (
 )
 
 const (
-	name  = "londo-enrolld"
-	usage = "enrolls new subjects with remote CM"
+	name  = "londo-revoked"
+	usage = "revokes certificates"
 )
 
 var (
@@ -41,25 +40,9 @@ func defaultCommand(c *cli.Context) error {
 		AMQPConnection().
 		RestAPIClient().
 		Declare(
-			londo.DbReplyExchange,
-			londo.DbReplyQueue,
-			amqp.ExchangeDirect, nil).
-		Declare(
-			londo.RenewExchange,
-			londo.RenewQueue,
-			amqp.ExchangeDirect, amqp.Table{
-				// TODO: probably once a day
-				"x-message-ttl": int(59 * time.Minute / time.Millisecond),
-			}).
-		Declare(
 			londo.RevokeExchange,
 			londo.RevokeQueue,
 			amqp.ExchangeDirect, nil).
-		Declare(
-			londo.EnrollExchange,
-			londo.EnrollQueue,
-			amqp.ExchangeDirect, nil).
-		ConsumeRenew().
+		ConsumeRevoke().
 		Run()
-
 }
