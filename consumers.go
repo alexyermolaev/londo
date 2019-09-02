@@ -176,7 +176,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 		s, err := UnmarshalSubjMsg(&d)
 		if err != nil {
 			d.Reject(false)
-			log.WithFields(logrus.Fields{logger.Action: "rejected"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: logger.Rejected}).Error(err)
 			return false
 		}
 
@@ -187,13 +187,13 @@ func (l *Londo) ConsumeCollect() *Londo {
 		res, err := l.RestClient.Collect(s.CertID)
 		if err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: logger.Requeue}).Error(err)
 			return false
 		}
 
 		if err := l.RestClient.VerifyStatusCode(res, http.StatusOK); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: logger.Requeue}).Error(err)
 			return false
 		}
 
@@ -204,7 +204,7 @@ func (l *Londo) ConsumeCollect() *Londo {
 			Certificate: s.Certificate,
 		}); err != nil {
 			d.Reject(true)
-			log.WithFields(logrus.Fields{logger.Action: "requeue"}).Error(err)
+			log.WithFields(logrus.Fields{logger.Action: logger.Requeue}).Error(err)
 			return false
 		}
 

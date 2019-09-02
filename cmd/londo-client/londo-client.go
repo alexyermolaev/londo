@@ -64,7 +64,7 @@ func init() {
 			Name:        "server, s",
 			Usage:       "connect to server `SERVER:PORT`",
 			Destination: &server.String,
-			Value:       "127.0.0.1:1337",
+			Value:       "localhost:1337",
 			EnvVar:      "LONDO_SERVER",
 		},
 		cli.StringFlag{
@@ -80,6 +80,12 @@ func init() {
 			Destination: &certPath.Private,
 			Value:       "/etc/pki/tls/private",
 			EnvVar:      "LONDO_CERT_PRIVATE",
+		},
+		cli.StringFlag{
+			Name:        "ca",
+			Usage:       "intermediate CA `FILE` used for TLS authentication",
+			Destination: &londocli.CAFile,
+			EnvVar:      "LONDO_CERT_CA",
 		},
 	}
 

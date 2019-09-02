@@ -22,6 +22,8 @@ var (
 func init() {
 	app = londocli.DaemonSetup(name, usage, defaultCommand)
 
+	hostname, _ := os.Hostname()
+
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:        "port, p",
@@ -47,6 +49,20 @@ func init() {
 			EnvVar:      "LONDO_SECRET",
 			Value:       "config/secret",
 			Destination: &londo.SFile,
+		},
+		cli.StringFlag{
+			Name:        "crt",
+			Usage:       "path to certificate `FILE`",
+			EnvVar:      "LONDO_CRED_CRT",
+			Value:       "/etc/pki/tls/certs/" + hostname + ".crt",
+			Destination: &londo.CrtFile,
+		},
+		cli.StringFlag{
+			Name:        "key",
+			Usage:       "path to key `FILE`",
+			EnvVar:      "LONDO_CRED_KEY",
+			Value:       "/etc/pki/tls/private/" + hostname + ".key",
+			Destination: &londo.Keyfile,
 		},
 	}
 

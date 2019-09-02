@@ -57,6 +57,7 @@ var (
 			getSubjCmd,
 			expSubjCmd,
 			renewCmd,
+			scanSubjCmd,
 		},
 	}
 
@@ -89,6 +90,13 @@ var (
 		Usage:       "delete subject",
 		Description: "schedules an existing subject to be removed, and its certificate revoked",
 		Action:      londocli.DeleteSubject,
+	}
+
+	scanSubjCmd = cli.Command{
+		Name:    "scan",
+		Aliases: []string{"s"},
+		Usage:   "scan given subject to update its DNS records",
+		Action:  nil,
 	}
 
 	getSubjCmd = cli.Command{
@@ -142,8 +150,14 @@ func init() {
 			Name:        "server, s",
 			Usage:       "connect to server `SERVER:PORT`",
 			Destination: &server.String,
-			Value:       "127.0.0.1:1337",
+			Value:       "localhost:1337",
 			EnvVar:      "LONDO_SERVER",
+		},
+		cli.StringFlag{
+			Name:        "ca",
+			Usage:       "intermediate CA `FILE` used for TLS authentication",
+			Destination: &londocli.CAFile,
+			EnvVar:      "LONDO_CERT_CA",
 		},
 	}
 

@@ -40,4 +40,5 @@ const (
 	Enroll    = "enroll"
 	Ok        = "ok"
 	Added     = "added"
+	Ready     = "ready"
 )

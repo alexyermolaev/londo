@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"io"
 	"io/ioutil"
 	"os"
@@ -36,6 +37,7 @@ var (
 	certPath    *CertPath
 	ExpDays     int
 	SFile       string
+	CAFile      string
 	UpdateCerts bool
 )
 
@@ -334,13 +336,17 @@ func DoRequest(c *cli.Context, f func(londopb.CertServiceClient) error) error {
 		token: token.String,
 	}
 
+	creds, err := credentials.NewClientTLSFromFile(CAFile, "")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Infof("dialing %s", server.String)
-	conn, err := grpc.Dial(server.String,
-		grpc.WithInsecure(),
-		grpc.WithPerRPCCredentials(auth))
+	conn, err := grpc.Dial(server.String, grpc.WithTransportCredentials(creds), grpc.WithPerRPCCredentials(auth))
 	if err != nil {
 		return cli.NewExitError("unable to connect.", 127)
 	}
+
 	defer conn.Close()
 
 	client := londopb.NewCertServiceClient(conn)

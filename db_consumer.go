@@ -103,7 +103,7 @@ func (l *Londo) dbUpdateSubject(d amqp.Delivery) bool {
 	certId, err := l.updateSubject(&d)
 	if err != nil {
 		d.Reject(false)
-		log.WithFields(logrus.Fields{logger.Reason: err}).Error(logger.Rejected)
+		log.WithFields(logrus.Fields{logger.Action: logger.Rejected}).Error(err)
 		return false
 	}
 

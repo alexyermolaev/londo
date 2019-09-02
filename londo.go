@@ -2,6 +2,7 @@ package londo
 
 import (
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"net"
 	"os"
 	"os/signal"
@@ -65,6 +66,9 @@ var (
 
 	cfg *Config
 	err error
+
+	CrtFile string
+	Keyfile string
 
 	log = logrus.New()
 
@@ -202,6 +206,9 @@ func (l *Londo) GRPCServer() *Londo {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPC.Port))
 	Fail(err)
 
+	creds, err := credentials.NewServerTLSFromFile(CrtFile, Keyfile)
+	Fail(err)
+
 	opts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpcMiddleware.ChainStreamServer(
 			grpcAuth.StreamServerInterceptor(AuthIntercept),
@@ -209,6 +216,7 @@ func (l *Londo) GRPCServer() *Londo {
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
 			grpcAuth.UnaryServerInterceptor(AuthIntercept),
 		)),
+		grpc.Creds(creds),
 	}
 
 	srv := grpc.NewServer(opts...)
@@ -219,7 +227,7 @@ func (l *Londo) GRPCServer() *Londo {
 	reflection.Register(srv)
 
 	go func() {
-		log.WithFields(logrus.Fields{logger.Port: cfg.GRPC.Port, logger.IP: "0.0.0.0"}).Info("ready")
+		log.WithFields(logrus.Fields{logger.Port: cfg.GRPC.Port, logger.IP: "0.0.0.0"}).Info(logger.Ready)
 		if err := srv.Serve(lis); err != nil {
 			Fail(err)
 		}
