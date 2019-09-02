@@ -259,151 +259,152 @@ func (l *Londo) ConsumeCheck() *Londo {
 			return false
 		}
 
-		log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info(logger.Received)
+		d.Ack(false)
 
-		now := time.Now().UTC()
-		t := now.Sub(e.Unresolvable).Round(time.Hour).Hours()
+		go func() {
+			log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Info(logger.Received)
 
-		ips, err := net.LookupIP(e.Subject)
+			now := time.Now().UTC()
+			t := now.Sub(e.Unresolvable).Round(time.Hour).Hours()
 
-		// if DNS cannot resolve the host and unresolvable time is larger than set number of hours
-		// but unresolvable time itself isn't a zero, revoke delete
-		if err != nil && t > float64(RevokeHours) && !e.Unresolvable.IsZero() {
-			revoke := RevokeEvent{
-				ID:     e.ID,
-				CertID: e.CertID,
-			}
+			ips, err := net.LookupIP(e.Subject)
 
-			if err := l.Publish(
-				DbReplyExchange, DbReplyQueue, "", DbDeleteSubjCmd, revoke); err != nil {
-				d.Reject(false)
+			// if DNS cannot resolve the host and unresolvable time is larger than set number of hours
+			// but unresolvable time itself isn't a zero, revoke delete
+			if err != nil && t > float64(RevokeHours) && !e.Unresolvable.IsZero() {
+				revoke := RevokeEvent{
+					ID:     e.ID,
+					CertID: e.CertID,
+				}
+
+				if err := l.Publish(
+					DbReplyExchange, DbReplyQueue, "", DbDeleteSubjCmd, revoke); err != nil {
+					d.Reject(false)
+
+					log.WithFields(logrus.Fields{
+						logger.Exchange: DbReplyExchange,
+						logger.Queue:    DbReplyQueue,
+						logger.Reason:   err,
+					}).Error(logger.Rejected)
+
+					return
+				}
 
 				log.WithFields(logrus.Fields{
 					logger.Exchange: DbReplyExchange,
 					logger.Queue:    DbReplyQueue,
-					logger.Reason:   err,
-				}).Error(logger.Rejected)
-
-				return false
-			}
-
-			log.WithFields(logrus.Fields{
-				logger.Exchange: DbReplyExchange,
-				logger.Queue:    DbReplyQueue,
-				logger.Cmd:      DbDeleteSubjCmd,
-				logger.Subject:  e.Subject,
-				logger.Hours:    int(t)}).Info(logger.Published)
-
-			if err := l.Publish(RevokeExchange, RevokeQueue, "", "", revoke); err != nil {
-				// It isn't that important if we can't publish to revoker somehow.
-				// So we'll just continue with the rest.
-				log.WithFields(logrus.Fields{
-					logger.Exchange: RevokeExchange,
-					logger.Queue:    RevokeQueue,
-					logger.Reason:   err,
-				}).Error(logger.Skip)
-			} else {
-				log.WithFields(logrus.Fields{
-					logger.Exchange: RevokeExchange,
-					logger.Queue:    RevokeQueue,
+					logger.Cmd:      DbDeleteSubjCmd,
 					logger.Subject:  e.Subject,
-					logger.CertID:   e.CertID,
 					logger.Hours:    int(t)}).Info(logger.Published)
-			}
 
-			d.Ack(false)
-			return false
-		}
-
-		var curSerial big.Int
-		curSerial.SetString(e.Serial, 10)
-
-		e.Match = false
-		e.Targets = nil
-		e.Outdated = nil
-		port := strconv.Itoa(int(e.Port))
-
-		// if dns can't resolve but it previous could, because unresolvable time was reset back to zero
-		if len(ips) == 0 && e.Unresolvable.IsZero() {
-			e.Unresolvable = now
-
-			log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Warn("unreachable")
-		}
-
-		// we have an array of IPs and unresolvable time is zero
-		if len(ips) != 0 {
-			e.Unresolvable = time.Time{}
-			var match int
-
-			for _, ip := range ips {
-
-				i := ip.String()
-
-				serial, err := GetCertSerialNumber(i, port, e.Subject)
-				if err != nil {
-
+				if err := l.Publish(RevokeExchange, RevokeQueue, "", "", revoke); err != nil {
+					// It isn't that important if we can't publish to revoker somehow.
+					// So we'll just continue with the rest.
 					log.WithFields(logrus.Fields{
-						logger.Subject:  e.Subject,
-						logger.IP:       i,
-						logger.Port:     port,
+						logger.Exchange: RevokeExchange,
+						logger.Queue:    RevokeQueue,
 						logger.Reason:   err,
-						logger.Outdated: e.Subject,
-					}).Error(logger.Added)
-
-					e.Outdated = append(e.Outdated, ip.String())
-					continue
+					}).Error(logger.Skip)
+				} else {
+					log.WithFields(logrus.Fields{
+						logger.Exchange: RevokeExchange,
+						logger.Queue:    RevokeQueue,
+						logger.Subject:  e.Subject,
+						logger.CertID:   e.CertID,
+						logger.Hours:    int(t)}).Info(logger.Published)
 				}
 
-				if serial.Cmp(&curSerial) == 0 {
-					e.Targets = append(e.Targets, i)
-					match++
+				return
+			}
 
-					log.WithFields(logrus.Fields{
-						logger.Subject: e.Subject,
-						logger.Target:  i}).Info(logger.Added)
+			var curSerial big.Int
+			curSerial.SetString(e.Serial, 10)
 
-				} else {
-					e.Outdated = append(e.Outdated, ip.String())
+			e.Match = false
+			e.Targets = nil
+			e.Outdated = nil
+			port := strconv.Itoa(int(e.Port))
 
-					if Debug {
+			// if dns can't resolve but it previous could, because unresolvable time was reset back to zero
+			if len(ips) == 0 && e.Unresolvable.IsZero() {
+				e.Unresolvable = now
+
+				log.WithFields(logrus.Fields{logger.Subject: e.Subject}).Warn("unreachable")
+			}
+
+			// we have an array of IPs and unresolvable time is zero
+			if len(ips) != 0 {
+				e.Unresolvable = time.Time{}
+				var match int
+
+				for _, ip := range ips {
+
+					i := ip.String()
+
+					serial, err := GetCertSerialNumber(i, port, e.Subject)
+					if err != nil {
+
 						log.WithFields(logrus.Fields{
 							logger.Subject:  e.Subject,
-							logger.Outdated: i,
-							logger.Serial:   curSerial.String(),
-							logger.DbSerial: serial.String()}).Debug(logger.Added)
+							logger.IP:       i,
+							logger.Port:     port,
+							logger.Reason:   err,
+							logger.Outdated: e.Subject,
+						}).Error(logger.Added)
+
+						e.Outdated = append(e.Outdated, ip.String())
+						continue
+					}
+
+					if serial.Cmp(&curSerial) == 0 {
+						e.Targets = append(e.Targets, i)
+						match++
+
+						log.WithFields(logrus.Fields{
+							logger.Subject: e.Subject,
+							logger.Target:  i}).Info(logger.Added)
+
 					} else {
-						log.WithFields(logrus.Fields{
-							logger.Subject:  e.Subject,
-							logger.Outdated: i}).Info(logger.Added)
+						e.Outdated = append(e.Outdated, ip.String())
+
+						if Debug {
+							log.WithFields(logrus.Fields{
+								logger.Subject:  e.Subject,
+								logger.Outdated: i,
+								logger.Serial:   curSerial.String(),
+								logger.DbSerial: serial.String()}).Debug(logger.Added)
+						} else {
+							log.WithFields(logrus.Fields{
+								logger.Subject:  e.Subject,
+								logger.Outdated: i}).Info(logger.Added)
+						}
 					}
 				}
+
+				if len(ips) == match {
+					e.Match = true
+				}
 			}
 
-			if len(ips) == match {
-				e.Match = true
-			}
-		}
+			if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
+				d.Reject(false)
 
-		if err := l.Publish(DbReplyExchange, DbReplyQueue, "", DbUpdateCertStatusCmd, &e); err != nil {
-			d.Reject(false)
+				log.WithFields(logrus.Fields{
+					logger.Subject:  e.Subject,
+					logger.Exchange: DbReplyExchange,
+					logger.Queue:    DbReplyQueue,
+					logger.Reason:   err,
+					logger.Cmd:      DbUpdateCertStatusCmd}).Error("rejected")
+				return
+			}
 
 			log.WithFields(logrus.Fields{
 				logger.Subject:  e.Subject,
 				logger.Exchange: DbReplyExchange,
 				logger.Queue:    DbReplyQueue,
-				logger.Reason:   err,
-				logger.Cmd:      DbUpdateCertStatusCmd}).Error("rejected")
+				logger.Cmd:      DbUpdateCertStatusCmd}).Info("published")
+		}()
 
-			return false
-		}
-
-		log.WithFields(logrus.Fields{
-			logger.Subject:  e.Subject,
-			logger.Exchange: DbReplyExchange,
-			logger.Queue:    DbReplyQueue,
-			logger.Cmd:      DbUpdateCertStatusCmd}).Info("published")
-
-		d.Ack(false)
 		return false
 	})
 

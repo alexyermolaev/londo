@@ -42,27 +42,7 @@ func (l *Londo) PublishPeriodicly(hours int) *Londo {
 		dur = time.Minute
 	}
 
-	c.AddFunc(gron.Every(time.Duration(hours)*dur), func() {
-		if err := l.Publish(
-			DbReplyExchange,
-			DbReplyQueue,
-			CheckQueue,
-			DbGetAllSubjectsCmd,
-			EmptyEvent{},
-		); err != nil {
-			log.WithFields(logrus.Fields{
-				logger.Exchange: DbReplyExchange,
-				logger.Queue:    DbReplyQueue,
-				logger.Subject:  "all",
-			}).Error(err)
-		}
-
-		log.WithFields(logrus.Fields{
-			logger.Exchange: DbReplyExchange,
-			logger.Queue:    DbReplyQueue,
-			logger.Subject:  "all",
-		}).Info("published")
-	})
+	c.AddFunc(gron.Every(time.Duration(hours)*dur), l.publishGetAllSubjects)
 
 	if Debug {
 		log.WithFields(logrus.Fields{
@@ -80,5 +60,32 @@ func (l *Londo) PublishPeriodicly(hours int) *Londo {
 
 	c.Start()
 
+	return l
+}
+
+func (l *Londo) publishGetAllSubjects() {
+	if err := l.Publish(
+		DbReplyExchange,
+		DbReplyQueue,
+		CheckQueue,
+		DbGetAllSubjectsCmd,
+		EmptyEvent{},
+	); err != nil {
+		log.WithFields(logrus.Fields{
+			logger.Exchange: DbReplyExchange,
+			logger.Queue:    DbReplyQueue,
+			logger.Subject:  "all",
+		}).Error(err)
+	}
+
+	log.WithFields(logrus.Fields{
+		logger.Exchange: DbReplyExchange,
+		logger.Queue:    DbReplyQueue,
+		logger.Subject:  "all",
+	}).Info("published")
+}
+
+func (l *Londo) PublishGetAllSubjects() *Londo {
+	l.publishGetAllSubjects()
 	return l
 }
