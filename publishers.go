@@ -2,10 +2,11 @@ package londo
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/alexyermolaev/londo/logger"
 	"github.com/roylee0704/gron"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 func (l *Londo) Publish(exchange string, queue string, reply string, cmd string, e Event) error {
@@ -32,8 +33,8 @@ func (l *Londo) Publish(exchange string, queue string, reply string, cmd string,
 	return nil
 }
 
-// TODO: needs to be improved for resuability
-func (l *Londo) PublishPeriodicly(hours int) *Londo {
+// TODO: needs to be improved for reusability
+func (l *Londo) PublishPeriodically(hours int) *Londo {
 	c := gron.New()
 
 	dur := time.Hour

@@ -407,7 +407,7 @@ func AuthIntercept(ctx context.Context) (context.Context, error) {
 	fields := logrus.Fields{logger.IP: ip}
 
 	// For now we'll trust that if it's on localhost, it's ok to do whatever
-	if ip == "127.0.0.1" {
+	if ip == "[" {
 		return ctx, nil
 	}
 

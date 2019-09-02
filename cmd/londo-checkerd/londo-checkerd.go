@@ -78,7 +78,7 @@ func defaultCommand(c *cli.Context) error {
 			londo.RevokeExchange,
 			londo.RevokeQueue,
 			amqp.ExchangeDirect, nil).
-		PublishPeriodicly(londo.ScanHours).
+		PublishPeriodically(londo.ScanHours).
 		PublishGetAllSubjects().
 		ConsumeCheck().
 		Run()
