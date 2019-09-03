@@ -20,7 +20,7 @@ type Payload struct {
 
 func IssueJWT(sub string) ([]byte, error) {
 	now := time.Now()
-	exp := now.Add(12 * time.Hour)
+	exp := now.Add(48 * time.Hour)
 
 	pl := Payload{
 		Payload: jwt.Payload{

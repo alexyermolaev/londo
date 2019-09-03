@@ -53,7 +53,7 @@ func (l *Londo) ConsumeEnroll() *Londo {
 
 		log.WithFields(logrus.Fields{logger.Subject: s.Subject}).Info("enrolling")
 
-		// A workaround for now; we don't need to process as fast as messages are being received.
+		// A workaround for now; we don't need to process as fast as londopb are being received.
 		// It is more important not to overwhelm a remote API, and get ourselves potentially banned
 		time.Sleep(1 * time.Minute)
 
