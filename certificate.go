@@ -30,6 +30,40 @@ func ParsePublicCertificate(c string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
+// FIXME: refactor
+func DecodeChain(chain []byte) ([]*x509.Certificate, error) {
+	var carr []*x509.Certificate
+
+	for {
+		block, rest := pem.Decode(chain)
+		if block == nil || block.Type != PublicKeyType {
+			return nil, errors.New("failed to decode PEM block containing public key")
+		}
+
+		raw, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, errors.New("failed to decode certificate")
+		}
+
+		carr = append(carr, raw)
+
+		if rest == nil {
+			break
+		}
+	}
+	return carr, nil
+}
+
+func ParsePrivateKey(k string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(k))
+
+	if block == nil || block.Type != PrivateKeyType {
+		return nil, errors.New("failed to parse private key")
+	}
+
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
+}
+
 func GeneratePrivateKey(bs int) (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, bs)
 }

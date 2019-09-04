@@ -104,6 +104,13 @@ var (
 		Aliases: []string{"g"},
 		Usage:   "get a subject",
 		Action:  londocli.GetSubject,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:        "pfx",
+				Usage:       "save as a pkcs12",
+				Destination: &londocli.Pfx,
+			},
+		},
 	}
 
 	expSubjCmd = cli.Command{

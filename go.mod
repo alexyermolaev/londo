@@ -33,4 +33,5 @@ require (
 	golang.org/x/tools v0.0.0-20190825031127-d72b05d2b1b6 // indirect
 	google.golang.org/grpc v1.23.0
 	gopkg.in/yaml.v2 v2.2.2
+	software.sslmate.com/src/go-pkcs12 v0.0.0-20190322163127-6e380ad96778
 )

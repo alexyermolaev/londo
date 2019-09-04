@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"google.golang.org/grpc/credentials"
 	"io"
 	"io/ioutil"
 	"os"
+	"software.sslmate.com/src/go-pkcs12"
 	"strings"
 	"time"
 
@@ -39,6 +41,7 @@ var (
 	SFile       string
 	CAFile      string
 	UpdateCerts bool
+	Pfx         bool
 )
 
 func init() {
@@ -307,6 +310,30 @@ func GetSubject(c *cli.Context) {
 			log.Fatal(err)
 		}
 
+		if Pfx {
+			crt := res.GetSubject().GetCertificate()
+			pvt := res.GetSubject().GetPrivateKey()
+
+			rawc, err := londo.ParsePublicCertificate(crt)
+			londo.Fail(err)
+
+			rawk, err := londo.ParsePrivateKey(pvt)
+			londo.Fail(err)
+
+			cafile, err := ioutil.ReadFile(CAFile)
+			londo.Fail(err)
+
+			rawch, err := londo.DecodeChain(cafile)
+			londo.Fail(err)
+
+			pfxData, err := pkcs12.Encode(rand.Reader, rawk, rawc, rawch, pkcs12.DefaultPassword)
+			londo.Fail(err)
+
+			if err := ioutil.WriteFile(res.GetSubject().GetSubject()+".pfx", pfxData, 0644); err != nil {
+				log.Fatal(err)
+			}
+
+		}
 		fmt.Printf("cn: %s\n\n", res.Subject.Subject)
 
 		fmt.Println("certificate:")
