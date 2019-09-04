@@ -47,10 +47,12 @@ func DecodeChain(chain []byte) ([]*x509.Certificate, error) {
 
 		carr = append(carr, raw)
 
-		if rest == nil {
+		if len(rest) == 0 {
 			break
 		}
+		chain = rest
 	}
+
 	return carr, nil
 }
 
