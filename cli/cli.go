@@ -333,6 +333,9 @@ func GetSubject(c *cli.Context) {
 				log.Fatal(err)
 			}
 
+			log.Infof("saving pkcs12: %s", res.GetSubject().GetSubject())
+			return nil
+
 		}
 		fmt.Printf("cn: %s\n\n", res.Subject.Subject)
 
